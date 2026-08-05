@@ -11,10 +11,12 @@
     "dev": "pnpm -r build && node --experimental-strip-types src/index.ts doctor"
   },
   "dependencies": {
+    "@ai-os/archive-ingest": "workspace:*",
     "@ai-os/config": "workspace:*",
     "@ai-os/database": "workspace:*",
     "@ai-os/memory-core": "workspace:*",
     "@ai-os/project-registry": "workspace:*",
-    "@ai-os/session-core": "workspace:*"
+    "@ai-os/session-core": "workspace:*",
+    "@ai-os/session-store": "workspace:*"
   }
 }

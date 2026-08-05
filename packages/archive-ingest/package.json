@@ -1,5 +1,5 @@
 {
-  "name": "@ai-os/database",
+  "name": "@ai-os/archive-ingest",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,6 +8,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test dist/*.test.js"
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@ai-os/provider-adapters": "workspace:*"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "name": "@ai-os/database",
+  "name": "@ai-os/session-store",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -9,5 +9,8 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "node --test dist/*.test.js"
+  },
+  "dependencies": {
+    "@ai-os/provider-adapters": "workspace:*"
   }
 }

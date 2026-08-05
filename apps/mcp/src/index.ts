@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { resolve } from "node:path";
-import { McpServer } from "@modelcontextprotocol/server/mcp";
-import { serveStdio } from "@modelcontextprotocol/server/stdio";
-import { z } from "zod";
+import { McpServer } from "@modelcontextprotocol/server";
+import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
+import * as z from "zod/v4";
 import { loadConfig } from "@ai-os/config";
 import {
   getSession,
@@ -18,7 +18,10 @@ const config = loadConfig();
 const database = openDatabase(config.databasePath);
 await runMigrations(database, resolve("packages/database/migrations"));
 
-const server = new McpServer({ name: "ai-os", version: "0.1.0" });
+const server = new McpServer(
+  { name: "ai-os", version: "0.2.0" },
+  { instructions: "Read-only access to local AI OS projects, sessions, memories, and status." },
+);
 
 function text(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
@@ -77,8 +80,12 @@ server.registerTool(
   }),
 );
 
-process.on("exit", () => database.close());
-process.on("SIGINT", () => { database.close(); process.exit(0); });
-process.on("SIGTERM", () => { database.close(); process.exit(0); });
+const close = (): void => {
+  try { database.close(); } catch { /* already closed */ }
+};
+process.on("exit", close);
+process.on("SIGINT", () => { close(); process.exit(0); });
+process.on("SIGTERM", () => { close(); process.exit(0); });
 
-await serveStdio(server);
+const transport = new StdioServerTransport();
+await server.connect(transport);
