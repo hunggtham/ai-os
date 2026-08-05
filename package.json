@@ -4,8 +4,8 @@
   "packageManager": "pnpm@10.14.0",
   "engines": { "node": ">=22" },
   "scripts": {
-    "build": "pnpm -r build",
-    "check": "pnpm -r check",
+    "build": "pnpm -r --sort build",
+    "check": "pnpm -r --sort build && pnpm -r check",
     "test": "pnpm -r test",
     "dev:cli": "pnpm --filter @ai-os/cli dev"
   },
