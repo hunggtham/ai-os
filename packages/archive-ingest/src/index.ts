@@ -37,14 +37,18 @@ export async function parseJsonlArchive(
     } catch (error) {
       throw new Error(`Invalid JSONL at line ${index + 1}`, { cause: error });
     }
+
     const content = record.content ?? record.text;
     if (!content) continue;
-    messages.push({
+
+    const message: NormalizedMessage = {
       role: normalizeRole(record.role),
       content,
-      createdAt: record.createdAt ?? record.timestamp,
-      metadata: record.metadata,
-    });
+    };
+    const createdAt = record.createdAt ?? record.timestamp;
+    if (createdAt) message.createdAt = createdAt;
+    if (record.metadata) message.metadata = record.metadata;
+    messages.push(message);
   }
 
   return {
