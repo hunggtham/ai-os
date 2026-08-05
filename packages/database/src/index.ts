@@ -11,8 +11,8 @@ export interface MigrationResult {
 export interface ProjectRow {
   id: string;
   name: string;
-  repository?: string;
-  localPath?: string;
+  repository?: string | undefined;
+  localPath?: string | undefined;
   status: string;
 }
 
@@ -20,9 +20,9 @@ export interface SessionRow {
   id: string;
   projectId: string;
   provider: string;
-  model?: string;
+  model?: string | undefined;
   startedAt: string;
-  endedAt?: string;
+  endedAt?: string | undefined;
   archivePath: string;
   contentHash: string;
 }
