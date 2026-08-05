@@ -1,0 +1,16 @@
+{
+  "name": "@ai-os/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "ai-os": "dist/index.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test",
+    "dev": "node --experimental-strip-types src/index.ts doctor"
+  },
+  "dependencies": {
+    "@ai-os/config": "workspace:*"
+  }
+}
