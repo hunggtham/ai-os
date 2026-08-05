@@ -5,12 +5,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { openDatabase, runMigrations, upsertProjects } from "@ai-os/database";
-import { importProviderExport, listImportRuns } from "./index.js";
+import { getImportRun, importProviderExport, listImportRuns, queryImportRuns } from "./index.js";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsDirectory = resolve(packageDirectory, "../database/migrations");
 
-test("skips an unchanged successful provider export", async () => {
+test("skips an unchanged successful provider export and queries audit history", async () => {
   const directory = await mkdtemp(join(tmpdir(), "ai-os-provider-import-"));
   const database = openDatabase(join(directory, "ai-os.db"));
   const sourcePath = join(directory, "codex.jsonl");
@@ -37,6 +37,10 @@ test("skips an unchanged successful provider export", async () => {
     assert.equal(first.sessions, 1);
     assert.equal(second.status, "skipped");
     assert.deepEqual(listImportRuns(database, 10).map((run) => run.status), ["skipped", "succeeded"]);
+    assert.deepEqual(queryImportRuns(database, { status: "succeeded" }).map((run) => run.id), [first.runId]);
+    assert.deepEqual(queryImportRuns(database, { provider: "codex", projectId: "ai-os", offset: 1, limit: 1 }).map((run) => run.id), [first.runId]);
+    assert.equal(getImportRun(database, second.runId)?.status, "skipped");
+    assert.equal(getImportRun(database, "missing"), null);
   } finally {
     database.close();
     await rm(directory, { recursive: true, force: true });
