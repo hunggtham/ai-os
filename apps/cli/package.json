@@ -8,7 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "node --test",
-    "dev": "node --experimental-strip-types src/index.ts doctor"
+    "dev": "pnpm --filter @ai-os/config build && node --experimental-strip-types src/index.ts doctor"
   },
   "dependencies": {
     "@ai-os/config": "workspace:*"
