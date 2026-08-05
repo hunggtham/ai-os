@@ -45,25 +45,33 @@ export class AdapterRegistry {
   readonly #adapters = new Map<ProviderId, ProviderSessionAdapter>();
 
   register(adapter: ProviderSessionAdapter): void {
-    if (this.#adapters.has(adapter.id)) {
-      throw new Error(`Provider adapter already registered: ${adapter.id}`);
-    }
+    if (this.#adapters.has(adapter.id)) throw new Error(`Provider adapter already registered: ${adapter.id}`);
     this.#adapters.set(adapter.id, adapter);
   }
 
-  list(): ProviderSessionAdapter[] {
-    return [...this.#adapters.values()];
-  }
+  list(): ProviderSessionAdapter[] { return [...this.#adapters.values()]; }
 
   async resolve(source: SessionSource): Promise<ProviderSessionAdapter> {
     if (source.providerHint) {
       const hinted = this.#adapters.get(source.providerHint);
       if (hinted && await hinted.supports(source)) return hinted;
     }
-
-    for (const adapter of this.#adapters.values()) {
-      if (await adapter.supports(source)) return adapter;
-    }
+    for (const adapter of this.#adapters.values()) if (await adapter.supports(source)) return adapter;
     throw new Error(`No provider adapter supports ${source.path}`);
   }
+}
+
+export { ChatGptExportAdapter, CodexJsonlAdapter } from "./builtin.js";
+export {
+  assertImportableArchives,
+  inspectNormalizedArchives,
+  type ArchiveInspection,
+} from "./validation.js";
+
+export async function createDefaultAdapterRegistry(): Promise<AdapterRegistry> {
+  const { ChatGptExportAdapter, CodexJsonlAdapter } = await import("./builtin.js");
+  const registry = new AdapterRegistry();
+  registry.register(new ChatGptExportAdapter());
+  registry.register(new CodexJsonlAdapter());
+  return registry;
 }
