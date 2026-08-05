@@ -17,6 +17,8 @@ export interface MemoryRow {
   status: string;
   createdAt: string;
   updatedAt: string;
+  expiresAt?: string | undefined;
+  supersedes?: string | undefined;
 }
 
 export function openDatabase(databasePath: string): DatabaseSync {
@@ -81,7 +83,7 @@ export function getSession(database: DatabaseSync, id: string): SessionRow | nul
 }
 
 export function upsertMemory(database: DatabaseSync, memory: MemoryRow): void {
-  database.prepare(`INSERT INTO memories(id,scope,subject_id,kind,content,confidence,source_session_id,status,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET scope=excluded.scope,subject_id=excluded.subject_id,kind=excluded.kind,content=excluded.content,confidence=excluded.confidence,source_session_id=excluded.source_session_id,status=excluded.status,updated_at=excluded.updated_at`).run(memory.id, memory.scope, memory.subjectId, memory.kind, memory.content, memory.confidence ?? null, memory.sourceSessionId ?? null, memory.status, memory.createdAt, memory.updatedAt);
+  database.prepare(`INSERT INTO memories(id,scope,subject_id,kind,content,confidence,source_session_id,status,created_at,updated_at,expires_at,supersedes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET scope=excluded.scope,subject_id=excluded.subject_id,kind=excluded.kind,content=excluded.content,confidence=excluded.confidence,source_session_id=excluded.source_session_id,status=excluded.status,updated_at=excluded.updated_at,expires_at=excluded.expires_at,supersedes=excluded.supersedes`).run(memory.id, memory.scope, memory.subjectId, memory.kind, memory.content, memory.confidence ?? null, memory.sourceSessionId ?? null, memory.status, memory.createdAt, memory.updatedAt, memory.expiresAt ?? null, memory.supersedes ?? null);
 }
 
 export function listMemories(database: DatabaseSync, scope?: string, subjectId?: string, text?: string, limit = 100): MemoryRow[] {
@@ -92,7 +94,7 @@ export function listMemories(database: DatabaseSync, scope?: string, subjectId?:
   if (text) { conditions.push("content LIKE ?"); values.push(`%${text}%`); }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
   values.push(Math.min(Math.max(limit, 1), 500));
-  return database.prepare(`SELECT id,scope,subject_id AS subjectId,kind,content,confidence,source_session_id AS sourceSessionId,status,created_at AS createdAt,updated_at AS updatedAt FROM memories ${where} ORDER BY updated_at DESC LIMIT ?`).all(...values) as unknown as MemoryRow[];
+  return database.prepare(`SELECT id,scope,subject_id AS subjectId,kind,content,confidence,source_session_id AS sourceSessionId,status,created_at AS createdAt,updated_at AS updatedAt,expires_at AS expiresAt,supersedes FROM memories ${where} ORDER BY updated_at DESC LIMIT ?`).all(...values) as unknown as MemoryRow[];
 }
 
 export function invalidateMemory(database: DatabaseSync, id: string, updatedAt: string): boolean {
@@ -103,12 +105,12 @@ export function invalidateMemory(database: DatabaseSync, id: string, updatedAt: 
 export function supersedeMemory(database: DatabaseSync, id: string, replacementId: string, updatedAt: string): boolean {
   const replacement = database.prepare("SELECT 1 FROM memories WHERE id = ?").get(replacementId);
   if (!replacement) throw new Error(`Replacement memory not found: ${replacementId}`);
-  const result = database.prepare("UPDATE memories SET status = 'superseded', updated_at = ? WHERE id = ? AND id <> ?").run(updatedAt, id, replacementId);
+  const result = database.prepare("UPDATE memories SET status = 'superseded', supersedes = ?, updated_at = ? WHERE id = ? AND id <> ?").run(replacementId, updatedAt, id, replacementId);
   return Number(result.changes) > 0;
 }
 
 export function expireMemories(database: DatabaseSync, now: string): number {
-  const result = database.prepare("UPDATE memories SET status = 'invalid', updated_at = ? WHERE status IN ('candidate','active') AND updated_at < ?").run(now, now);
+  const result = database.prepare("UPDATE memories SET status = 'invalid', updated_at = ? WHERE status IN ('candidate','active') AND expires_at IS NOT NULL AND expires_at <= ?").run(now, now);
   return Number(result.changes);
 }
 
