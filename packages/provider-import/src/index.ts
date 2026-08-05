@@ -83,25 +83,18 @@ export async function importProviderExport(
     assertImportableArchives(archives);
     const inspection = inspectNormalizedArchives(archives);
 
-    database.exec("BEGIN IMMEDIATE;");
-    try {
-      for (const archive of archives) {
-        upsertSession(database, {
-          id: archive.id,
-          projectId: archive.projectId,
-          provider: archive.provider,
-          ...(archive.model !== undefined ? { model: archive.model } : {}),
-          startedAt: archive.startedAt,
-          ...(archive.endedAt !== undefined ? { endedAt: archive.endedAt } : {}),
-          archivePath: `${options.path}#${archive.id}`,
-          contentHash,
-        });
-        replaceSessionMessages(database, archive);
-      }
-      database.exec("COMMIT;");
-    } catch (error) {
-      database.exec("ROLLBACK;");
-      throw error;
+    for (const archive of archives) {
+      upsertSession(database, {
+        id: archive.id,
+        projectId: archive.projectId,
+        provider: archive.provider,
+        ...(archive.model !== undefined ? { model: archive.model } : {}),
+        startedAt: archive.startedAt,
+        ...(archive.endedAt !== undefined ? { endedAt: archive.endedAt } : {}),
+        archivePath: `${options.path}#${archive.id}`,
+        contentHash,
+      });
+      replaceSessionMessages(database, archive);
     }
 
     const finishedAt = new Date().toISOString();
