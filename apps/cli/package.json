@@ -17,7 +17,7 @@
     "@ai-os/database": "workspace:*",
     "@ai-os/memory-core": "workspace:*",
     "@ai-os/project-registry": "workspace:*",
-    "@ai-os/provider-adapters": "workspace:*",
+    "@ai-os/provider-import": "workspace:*",
     "@ai-os/session-core": "workspace:*",
     "@ai-os/session-store": "workspace:*"
   }
