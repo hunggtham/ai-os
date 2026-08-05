@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ai-os.local/schemas/session.schema.json",
+  "title": "AI OS Session Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "id",
+    "projectId",
+    "startedAt",
+    "provider",
+    "client",
+    "status",
+    "artifacts"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]{2,127}$" },
+    "projectId": { "type": "string", "minLength": 1, "maxLength": 128 },
+    "title": { "type": "string", "maxLength": 240 },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "endedAt": { "type": ["string", "null"], "format": "date-time" },
+    "provider": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "model": { "type": ["string", "null"], "maxLength": 160 },
+    "client": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "status": { "enum": ["active", "completed", "failed", "abandoned"] },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 80 },
+      "uniqueItems": true
+    },
+    "summary": { "type": ["string", "null"], "maxLength": 4000 },
+    "decisions": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 1000 }
+    },
+    "todos": {
+      "type": "array",
+      "items": { "type": "string", "maxLength": 1000 }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["transcript"],
+      "properties": {
+        "transcript": { "type": "string", "minLength": 1 },
+        "attachments": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "git": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "repository": { "type": ["string", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "commits": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[0-9a-fA-F]{7,40}$" }
+        },
+        "changedFiles": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}
