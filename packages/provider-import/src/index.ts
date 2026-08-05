@@ -39,10 +39,32 @@ export interface ImportRunRow {
   finishedAt?: string | undefined;
 }
 
+export interface ImportRunQuery {
+  status?: string | undefined;
+  provider?: string | undefined;
+  projectId?: string | undefined;
+  offset?: number | undefined;
+  limit?: number | undefined;
+}
+
 type RawImportRunRow = ImportRunRow & {
   errorMessage: string | null;
   finishedAt: string | null;
 };
+
+const normalizeImportRun = (row: RawImportRunRow): ImportRunRow => ({
+  id: row.id,
+  sourcePath: row.sourcePath,
+  projectId: row.projectId,
+  provider: row.provider,
+  contentHash: row.contentHash,
+  status: row.status,
+  sessionsCount: row.sessionsCount,
+  messagesCount: row.messagesCount,
+  startedAt: row.startedAt,
+  ...(row.errorMessage !== null ? { errorMessage: row.errorMessage } : {}),
+  ...(row.finishedAt !== null ? { finishedAt: row.finishedAt } : {}),
+});
 
 export async function importProviderExport(
   database: DatabaseSync,
@@ -126,26 +148,37 @@ export async function importProviderExport(
   }
 }
 
-export function listImportRuns(database: DatabaseSync, limit = 50): ImportRunRow[] {
-  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 500);
+export function queryImportRuns(database: DatabaseSync, query: ImportRunQuery = {}): ImportRunRow[] {
+  const conditions: string[] = [];
+  const values: Array<string | number> = [];
+  if (query.status) { conditions.push("status = ?"); values.push(query.status); }
+  if (query.provider) { conditions.push("provider = ?"); values.push(query.provider); }
+  if (query.projectId) { conditions.push("project_id = ?"); values.push(query.projectId); }
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const offset = Math.min(Math.max(Math.trunc(query.offset ?? 0), 0), 100000);
+  const limit = Math.min(Math.max(Math.trunc(query.limit ?? 50), 1), 500);
+  values.push(limit, offset);
   const rows = database.prepare(`
     SELECT id, source_path AS sourcePath, project_id AS projectId, provider,
            content_hash AS contentHash, status, sessions_count AS sessionsCount,
            messages_count AS messagesCount, error_message AS errorMessage,
            started_at AS startedAt, finished_at AS finishedAt
-    FROM import_runs ORDER BY started_at DESC LIMIT ?
-  `).all(safeLimit) as unknown as RawImportRunRow[];
-  return rows.map((row) => ({
-    id: row.id,
-    sourcePath: row.sourcePath,
-    projectId: row.projectId,
-    provider: row.provider,
-    contentHash: row.contentHash,
-    status: row.status,
-    sessionsCount: row.sessionsCount,
-    messagesCount: row.messagesCount,
-    startedAt: row.startedAt,
-    ...(row.errorMessage !== null ? { errorMessage: row.errorMessage } : {}),
-    ...(row.finishedAt !== null ? { finishedAt: row.finishedAt } : {}),
-  }));
+    FROM import_runs ${where} ORDER BY started_at DESC LIMIT ? OFFSET ?
+  `).all(...values) as unknown as RawImportRunRow[];
+  return rows.map(normalizeImportRun);
+}
+
+export function getImportRun(database: DatabaseSync, id: string): ImportRunRow | null {
+  const row = database.prepare(`
+    SELECT id, source_path AS sourcePath, project_id AS projectId, provider,
+           content_hash AS contentHash, status, sessions_count AS sessionsCount,
+           messages_count AS messagesCount, error_message AS errorMessage,
+           started_at AS startedAt, finished_at AS finishedAt
+    FROM import_runs WHERE id = ?
+  `).get(id) as unknown as RawImportRunRow | undefined;
+  return row ? normalizeImportRun(row) : null;
+}
+
+export function listImportRuns(database: DatabaseSync, limit = 50): ImportRunRow[] {
+  return queryImportRuns(database, { limit });
 }
