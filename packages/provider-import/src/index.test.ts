@@ -8,7 +8,7 @@ import { openDatabase, runMigrations, upsertProjects } from "@ai-os/database";
 import { importProviderExport, listImportRuns } from "./index.js";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const migrationsDirectory = resolve(packageDirectory, "../../database/migrations");
+const migrationsDirectory = resolve(packageDirectory, "../database/migrations");
 
 test("skips an unchanged successful provider export", async () => {
   const directory = await mkdtemp(join(tmpdir(), "ai-os-provider-import-"));
