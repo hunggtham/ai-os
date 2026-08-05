@@ -8,6 +8,25 @@ export interface MigrationResult {
   skipped: string[];
 }
 
+export interface ProjectRow {
+  id: string;
+  name: string;
+  repository?: string;
+  localPath?: string;
+  status: string;
+}
+
+export interface SessionRow {
+  id: string;
+  projectId: string;
+  provider: string;
+  model?: string;
+  startedAt: string;
+  endedAt?: string;
+  archivePath: string;
+  contentHash: string;
+}
+
 export function openDatabase(databasePath: string): DatabaseSync {
   mkdirSync(dirname(databasePath), { recursive: true });
   const database = new DatabaseSync(databasePath);
@@ -60,4 +79,60 @@ export async function runMigrations(
   }
 
   return result;
+}
+
+export function upsertProjects(database: DatabaseSync, projects: ProjectRow[]): number {
+  const statement = database.prepare(`
+    INSERT INTO projects(id, name, repository, local_path, status)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      name = excluded.name,
+      repository = excluded.repository,
+      local_path = excluded.local_path,
+      status = excluded.status,
+      updated_at = CURRENT_TIMESTAMP
+  `);
+
+  database.exec("BEGIN IMMEDIATE;");
+  try {
+    for (const project of projects) {
+      statement.run(
+        project.id,
+        project.name,
+        project.repository ?? null,
+        project.localPath ?? null,
+        project.status,
+      );
+    }
+    database.exec("COMMIT;");
+    return projects.length;
+  } catch (error) {
+    database.exec("ROLLBACK;");
+    throw error;
+  }
+}
+
+export function upsertSession(database: DatabaseSync, session: SessionRow): void {
+  database.prepare(`
+    INSERT INTO sessions(
+      id, project_id, provider, model, started_at, ended_at, archive_path, content_hash
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      project_id = excluded.project_id,
+      provider = excluded.provider,
+      model = excluded.model,
+      started_at = excluded.started_at,
+      ended_at = excluded.ended_at,
+      archive_path = excluded.archive_path,
+      content_hash = excluded.content_hash
+  `).run(
+    session.id,
+    session.projectId,
+    session.provider,
+    session.model ?? null,
+    session.startedAt,
+    session.endedAt ?? null,
+    session.archivePath,
+    session.contentHash,
+  );
 }
