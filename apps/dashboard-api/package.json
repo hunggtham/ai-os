@@ -1,0 +1,17 @@
+{
+  "name": "@ai-os/dashboard-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test",
+    "dev": "pnpm -r --sort build && node --experimental-strip-types src/index.ts"
+  },
+  "dependencies": {
+    "@ai-os/config": "workspace:*",
+    "@ai-os/database": "workspace:*",
+    "@ai-os/session-store": "workspace:*"
+  }
+}
