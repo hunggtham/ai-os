@@ -1,0 +1,19 @@
+{
+  "name": "@ai-os/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": { "ai-os-mcp": "dist/index.js" },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test",
+    "dev": "pnpm --filter @ai-os/config build && pnpm --filter @ai-os/database build && node --experimental-strip-types src/index.ts"
+  },
+  "dependencies": {
+    "@ai-os/config": "workspace:*",
+    "@ai-os/database": "workspace:*",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.0.0"
+  }
+}
