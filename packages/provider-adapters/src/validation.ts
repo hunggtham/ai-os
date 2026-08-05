@@ -31,14 +31,17 @@ export function inspectNormalizedArchives(
   }
 
   startedTimes.sort();
+  const earliestStartedAt = startedTimes[0];
+  const latestStartedAt = startedTimes.at(-1);
+
   return {
     sessions: archives.length,
     messages,
     emptySessions,
     providers,
     roles,
-    ...(startedTimes[0] ? { earliestStartedAt: startedTimes[0] } : {}),
-    ...(startedTimes.at(-1) ? { latestStartedAt: startedTimes.at(-1) } : {}),
+    ...(earliestStartedAt !== undefined ? { earliestStartedAt } : {}),
+    ...(latestStartedAt !== undefined ? { latestStartedAt } : {}),
   };
 }
 
