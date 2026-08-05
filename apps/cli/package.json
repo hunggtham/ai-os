@@ -8,11 +8,12 @@
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "node --test",
-    "dev": "pnpm --filter @ai-os/config build && pnpm --filter @ai-os/database build && pnpm --filter @ai-os/project-registry build && pnpm --filter @ai-os/contracts build && pnpm --filter @ai-os/session-core build && node --experimental-strip-types src/index.ts doctor"
+    "dev": "pnpm -r build && node --experimental-strip-types src/index.ts doctor"
   },
   "dependencies": {
     "@ai-os/config": "workspace:*",
     "@ai-os/database": "workspace:*",
+    "@ai-os/memory-core": "workspace:*",
     "@ai-os/project-registry": "workspace:*",
     "@ai-os/session-core": "workspace:*"
   }
