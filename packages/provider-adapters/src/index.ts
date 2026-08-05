@@ -62,6 +62,11 @@ export class AdapterRegistry {
 }
 
 export { ChatGptExportAdapter, CodexJsonlAdapter } from "./builtin.js";
+export {
+  assertImportableArchives,
+  inspectNormalizedArchives,
+  type ArchiveInspection,
+} from "./validation.js";
 
 export async function createDefaultAdapterRegistry(): Promise<AdapterRegistry> {
   const { ChatGptExportAdapter, CodexJsonlAdapter } = await import("./builtin.js");
