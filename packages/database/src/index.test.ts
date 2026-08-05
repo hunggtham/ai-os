@@ -60,7 +60,8 @@ test("project synchronization and session import are idempotent", () => {
     const projectRow = database.prepare("SELECT name FROM projects WHERE id = ?").get("ai-os") as { name: string };
     const sessionRow = database.prepare("SELECT model, content_hash FROM sessions WHERE id = ?").get("session-1") as { model: string; content_hash: string };
     assert.equal(projectRow.name, "AI OS Platform");
-    assert.deepEqual(sessionRow, { model: "gpt", content_hash: "hash-2" });
+    assert.equal(sessionRow.model, "gpt");
+    assert.equal(sessionRow.content_hash, "hash-2");
   } finally {
     database.close();
   }
