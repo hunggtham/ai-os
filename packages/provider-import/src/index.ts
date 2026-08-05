@@ -39,6 +39,11 @@ export interface ImportRunRow {
   finishedAt?: string | undefined;
 }
 
+type RawImportRunRow = ImportRunRow & {
+  errorMessage: string | null;
+  finishedAt: string | null;
+};
+
 export async function importProviderExport(
   database: DatabaseSync,
   options: ProviderImportOptions,
@@ -129,7 +134,7 @@ export function listImportRuns(database: DatabaseSync, limit = 50): ImportRunRow
            messages_count AS messagesCount, error_message AS errorMessage,
            started_at AS startedAt, finished_at AS finishedAt
     FROM import_runs ORDER BY started_at DESC LIMIT ?
-  `).all(safeLimit) as Array<ImportRunRow & { errorMessage: string | null; finishedAt: string | null }>;
+  `).all(safeLimit) as unknown as RawImportRunRow[];
   return rows.map((row) => ({
     id: row.id,
     sourcePath: row.sourcePath,
