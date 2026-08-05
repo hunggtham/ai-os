@@ -28,6 +28,25 @@ Session IDs are derived from project, source path, and provider session identity
 
 A ChatGPT export may contain many conversations in one file. AI OS stores a unique logical archive path for each resulting session while retaining the original source file path in normalized metadata.
 
+## Inspection and validation
+
+`@ai-os/provider-adapters` exports:
+
+```ts
+inspectNormalizedArchives(archives)
+assertImportableArchives(archives)
+```
+
+Inspection returns session and message totals, provider and role counts, empty-session IDs, and the earliest/latest session timestamps.
+
+Validation rejects:
+
+- exports that produce no sessions;
+- duplicate normalized session IDs;
+- sessions that contain no importable messages.
+
+Provider-specific adapters should run through this validation boundary before persistence. A dedicated CLI inspection command will use the same functions without writing to SQLite.
+
 ## Data boundary
 
 Provider export files and imported messages remain in the local `AI_OS_HOME` database. They are not committed to Git.
