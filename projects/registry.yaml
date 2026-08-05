@@ -1,0 +1,31 @@
+schema_version: 1
+
+projects:
+  - id: ai-os
+    name: AI OS
+    description: Personal multi-provider AI control plane.
+    status: active
+    type: platform
+    privacy: internal
+    repository:
+      provider: github
+      full_name: hunggtham/ai-os
+      default_branch: main
+    local_paths: []
+    knowledge_paths:
+      - docs
+      - knowledge
+    session_root: sessions/ai-os
+    memory_scope: ai-os
+    tags:
+      - ai
+      - knowledge-management
+      - local-first
+    adapters:
+      - codex
+      - opencodex
+      - chatgpt
+      - gemini-cli
+      - claude-code
+      - ollama
+    metadata: {}
