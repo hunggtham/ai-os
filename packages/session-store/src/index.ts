@@ -105,8 +105,10 @@ export function searchSessionMessages(
   query: string,
   projectId?: string,
   limit = 50,
+  offset = 0,
 ): SessionSearchResult[] {
-  const safeLimit = Math.min(Math.max(limit, 1), 200);
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+  const safeOffset = Math.min(Math.max(Math.trunc(offset), 0), 100000);
   const sql = projectId
     ? `
       SELECT f.message_id AS messageId, f.session_id AS sessionId, f.role,
@@ -114,19 +116,19 @@ export function searchSessionMessages(
       FROM session_messages_fts f
       JOIN sessions s ON s.id = f.session_id
       WHERE session_messages_fts MATCH ? AND s.project_id = ?
-      ORDER BY rank
-      LIMIT ?
+      ORDER BY rank, f.message_id
+      LIMIT ? OFFSET ?
     `
     : `
       SELECT message_id AS messageId, session_id AS sessionId, role,
              content, bm25(session_messages_fts) AS rank
       FROM session_messages_fts
       WHERE session_messages_fts MATCH ?
-      ORDER BY rank
-      LIMIT ?
+      ORDER BY rank, message_id
+      LIMIT ? OFFSET ?
     `;
   const statement = database.prepare(sql);
   return (projectId
-    ? statement.all(query, projectId, safeLimit)
-    : statement.all(query, safeLimit)) as unknown as SessionSearchResult[];
+    ? statement.all(query, projectId, safeLimit, safeOffset)
+    : statement.all(query, safeLimit, safeOffset)) as unknown as SessionSearchResult[];
 }
