@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { loadConfig } from "@ai-os/config";
 import { openDatabase, runMigrations } from "@ai-os/database";
 import { loadImportSourceRegistry, syncActionableImportSources } from "@ai-os/import-sources";
+import { acquireProcessLock, type ProcessLock } from "./process-lock.js";
 
 interface SyncReportSummary {
   total: number;
@@ -46,8 +47,12 @@ const sourceId = readOption("source");
 const outputPath = readOption("output");
 const config = loadConfig();
 const database = openDatabase(config.databasePath);
+let processLock: ProcessLock | undefined;
 
 try {
+  processLock = await acquireProcessLock(join(config.home, "locks", "source-sync.lock"), {
+    staleAfterMs: 60 * 60 * 1000,
+  });
   await runMigrations(database, resolve("packages/database/migrations"));
   const registry = await loadImportSourceRegistry(registryPath);
   const results = await syncActionableImportSources(database, registry, sourceId);
@@ -57,6 +62,7 @@ try {
     command: "provider:sources:sync-actionable",
     registryPath,
     ...(sourceId ? { sourceId } : {}),
+    lock: { path: processLock.path, acquiredAt: processLock.acquiredAt },
     startedAt: startedAt.toISOString(),
     finishedAt: finishedAt.toISOString(),
     durationMs: finishedAt.getTime() - startedAt.getTime(),
@@ -94,5 +100,6 @@ try {
   process.stderr.write(serialized);
   process.exitCode = 1;
 } finally {
+  await processLock?.release();
   database.close();
 }
