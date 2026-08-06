@@ -4,6 +4,7 @@ import { mkdirSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
 export interface MigrationResult { applied: string[]; skipped: string[]; }
+export interface DatabaseMaintenanceResult { integrity: string; analyzed: boolean; vacuumed: boolean; }
 export interface ProjectRow { id: string; name: string; repository?: string | undefined; localPath?: string | undefined; status: string; }
 export interface SessionRow { id: string; projectId: string; provider: string; model?: string | undefined; startedAt: string; endedAt?: string | undefined; archivePath: string; contentHash: string; }
 export interface MemoryRow {
@@ -50,6 +51,24 @@ export async function runMigrations(database: DatabaseSync, migrationsDir: strin
     }
   }
   return result;
+}
+
+export function maintainDatabase(database: DatabaseSync, options: { analyze?: boolean; vacuum?: boolean } = {}): DatabaseMaintenanceResult {
+  const integrity = String((database.prepare("PRAGMA integrity_check").get() as { integrity_check: string }).integrity_check);
+  if (integrity !== "ok") throw new Error(`SQLite integrity check failed: ${integrity}`);
+  const analyzed = options.analyze !== false;
+  const vacuumed = options.vacuum === true;
+  if (analyzed) database.exec("ANALYZE;");
+  if (vacuumed) {
+    database.exec("PRAGMA wal_checkpoint(TRUNCATE);");
+    database.exec("VACUUM;");
+  }
+  return { integrity, analyzed, vacuumed };
+}
+
+export function getMigrationVersion(database: DatabaseSync): string | null {
+  const row = database.prepare("SELECT version FROM schema_migrations ORDER BY version DESC LIMIT 1").get() as { version: string } | undefined;
+  return row?.version ?? null;
 }
 
 export function upsertProjects(database: DatabaseSync, projects: ProjectRow[]): number {
