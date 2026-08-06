@@ -1,48 +1,43 @@
 # AI OS
 
-A local-first, provider-independent control plane for shared AI knowledge, session archives, durable memory, search, and workflows.
+A local-first, provider-independent control plane for shared AI knowledge, session archives, durable memory, search, provider imports, operational health, and read-only MCP access.
 
 ## Status
 
-AI OS is in the **v1 completion and hardening stage**. Foundation, local persistence, session search, provider imports, import audit, configured source synchronization, freshness inspection, the read-only dashboard, actionable-only sync, and JSON automation reports are implemented.
+AI OS is in the **v1 completion and hardening stage**. Bootstrap, local persistence, session search, durable-memory lifecycle, provider imports, configured-source synchronization, dashboard/API privacy, backup/restore, read-only MCP, and full end-to-end CI validation are implemented.
 
-See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for the authoritative completed-work inventory, definition of done, remaining TODOs, and accelerated delivery sequence.
+See:
+
+- [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for completed work, remaining TODOs, and release progress;
+- [`docs/architecture.md`](docs/architecture.md) for the current as-built v1 architecture;
+- [`docs/ADR_STATUS.md`](docs/ADR_STATUS.md) for accepted and deferred architecture decisions.
 
 ## Core principles
 
-1. Git is the source of truth.
+1. Git is the reviewed source of truth.
 2. Markdown stores human-readable knowledge and decisions.
-3. Session archives preserve full AI interactions and work history.
+3. Session archives preserve complete AI work history.
 4. Shared memory stores only durable facts, goals, preferences, and conventions.
-5. Search retrieves detailed context; memory does not replace documentation.
-6. AI providers are connected through adapters and MCP-compatible interfaces.
-7. Secrets, credentials, runtime databases, and private attachments must never be committed.
-
-## Initial scope
-
-- Knowledge base conventions
-- Session archive format
-- Shared-memory abstraction
-- Project registry
-- Search and indexing design
-- MCP boundary
-- Provider adapter contract
-- Dashboard and automation roadmap
+5. SQLite FTS provides local v1 retrieval; indexes remain rebuildable data.
+6. AI providers are isolated through normalized adapters.
+7. CLI is the trusted local mutation boundary.
+8. Dashboard/API and MCP are read-only for v1.
+9. Secrets, credentials, runtime databases, provider exports, and private attachments must never be committed.
 
 ## Repository map
 
 ```text
-docs/        Architecture, ADRs, conventions, status, and roadmap
+docs/        Architecture, ADR status, conventions, runbooks, and roadmap
 projects/    Registry and project templates
 knowledge/   Curated reusable knowledge
-sessions/    Full AI work-session archives
-memory/      Durable memory schema and exports
+sessions/    Sanitized, version-controlled AI work-session archives
+memory/      Durable memory schemas and export conventions
 prompts/     Provider-independent prompts and workflows
-adapters/    AI provider and tool adapters
-mcp/         MCP server and tool contracts
-apps/        Dashboard and API applications
-packages/    Shared libraries
-scripts/     Maintenance and automation scripts
+adapters/    Provider and tool adapter documentation
+mcp/         MCP contracts and integration documentation
+apps/        CLI, dashboard/API, and MCP applications
+packages/    Shared domain and infrastructure libraries
+scripts/     Bootstrap, backup, restore, smoke, and automation scripts
 ```
 
-Start with `AGENTS.md`, `docs/PROJECT_STATUS.md`, `docs/architecture.md`, and `docs/roadmap.md`.
+Start with `AGENTS.md`, `docs/PROJECT_STATUS.md`, `docs/architecture.md`, `docs/ADR_STATUS.md`, and `docs/operator-guide.md`.
