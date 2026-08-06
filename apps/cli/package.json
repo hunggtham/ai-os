@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test",
+    "test": "node --test dist/*.test.js",
     "dev": "pnpm -r build && node --experimental-strip-types src/index.ts doctor",
     "source:sync-actionable": "pnpm -r --sort build && node dist/source-sync-report.js"
   },
