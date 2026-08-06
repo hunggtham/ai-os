@@ -14,7 +14,11 @@ function inside(root: string, value: string): string | null {
 }
 
 function isPathField(key: string): boolean {
-  return /(?:^|_|-)(?:path|directory|root)$/i.test(key) || /(?:Path|Directory|Root)$/.test(key);
+  const normalized = key.replace(/[_-]/g, "").toLowerCase();
+  return normalized === "path"
+    || normalized.endsWith("path")
+    || normalized.endsWith("directory")
+    || normalized.endsWith("root");
 }
 
 export function redactPath(value: string | null | undefined, options: PathRedactionOptions = {}): string | null {
