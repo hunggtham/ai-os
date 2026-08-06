@@ -6,7 +6,7 @@ import {
   listMemories,
   listProjects,
   listSessions,
-  type openDatabase,
+  openDatabase,
 } from "@ai-os/database";
 import { inspectImportSources, loadImportSourceRegistry, summarizeImportSourceStatuses } from "@ai-os/import-sources";
 import { getImportRunSummary, queryImportRuns } from "@ai-os/provider-import";
@@ -86,7 +86,13 @@ export function createReadLayer(database: Database, options: ReadLayerOptions = 
     },
     importHealth: (input: { projectId?: string; provider?: string; status?: string } & PageInput = {}) => {
       const { limit, offset } = page(input, 100);
-      const rows = queryImportRuns(database, { ...input, limit: limit + 1, offset });
+      const rows = queryImportRuns(database, {
+        limit: limit + 1,
+        offset,
+        ...(input.projectId ? { projectId: input.projectId } : {}),
+        ...(input.provider ? { provider: input.provider } : {}),
+        ...(input.status ? { status: input.status } : {}),
+      });
       return safe({ summary: getImportRunSummary(database), imports: rows.slice(0, limit), limit, offset, hasMore: rows.length > limit });
     },
     sourceFreshness: async (sourceId?: string) => {
