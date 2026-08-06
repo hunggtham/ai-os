@@ -57,3 +57,32 @@ test("read layer paginates real SQLite data and redacts local paths", async () =
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test("session pagination continues beyond the legacy 500-row cap", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "ai-os-mcp-pagination-"));
+  const database = openDatabase(join(directory, "ai-os.sqlite"));
+  try {
+    await runMigrations(database, migrations);
+    upsertProjects(database, [{ id: "ai-os", name: "AI OS", status: "active" }]);
+    const base = Date.parse("2026-08-06T00:00:00.000Z");
+    for (let index = 0; index < 530; index += 1) {
+      upsertSession(database, {
+        id: `session-${String(index).padStart(3, "0")}`,
+        projectId: "ai-os",
+        provider: "codex",
+        startedAt: new Date(base + index * 1000).toISOString(),
+        archivePath: join(directory, "sessions", `${index}.jsonl`),
+        contentHash: `hash-${index}`,
+      });
+    }
+
+    const page = createReadLayer(database, { home: directory }).listSessions({ projectId: "ai-os", limit: 10, offset: 510 });
+    assert.equal(page.sessions.length, 10);
+    assert.equal(page.offset, 510);
+    assert.equal(page.limit, 10);
+    assert.equal(page.hasMore, true);
+  } finally {
+    database.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
