@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { resolve } from "node:path";
 import { loadConfig } from "@ai-os/config";
 import { getSession, getSystemCounts, listProjects, listSessions, openDatabase, runMigrations } from "@ai-os/database";
-import { getImportRun, queryImportRuns } from "@ai-os/provider-import";
+import { getImportRun, getImportRunSummary, queryImportRuns } from "@ai-os/provider-import";
 import { listSessionMessages, searchSessionMessages } from "@ai-os/session-store";
 
 const config = loadConfig();
@@ -30,7 +30,7 @@ let page=1;const pageSize=20;let mode='sessions';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function json(path){const r=await fetch(path);if(!r.ok)throw new Error(await r.text());return r.json()}
 function projectOptions(projects){return '<option value="">All projects</option>'+projects.map(p=>'<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>').join('')}
-async function init(){const [system,projects]=await Promise.all([json('/api/status'),json('/api/projects')]);stats.innerHTML=Object.entries(system.counts).map(([k,v])=>'<div class="card"><div class="muted">'+esc(k)+'</div><strong>'+esc(v)+'</strong></div>').join('');project.innerHTML=projectOptions(projects.projects);importProject.innerHTML=projectOptions(projects.projects);loadSessions()}
+async function init(){const [system,projects,imports]=await Promise.all([json('/api/status'),json('/api/projects'),json('/api/imports/summary')]);const cards={...system.counts,importRuns:imports.summary.total,importFailures:imports.summary.failed,importsRunning:imports.summary.running};stats.innerHTML=Object.entries(cards).map(([k,v])=>'<div class="card"><div class="muted">'+esc(k)+'</div><strong>'+esc(v)+'</strong></div>').join('');project.innerHTML=projectOptions(projects.projects);importProject.innerHTML=projectOptions(projects.projects);loadSessions()}
 async function loadSessions(){mode='sessions';const offset=(page-1)*pageSize;const p=new URLSearchParams({limit:String(pageSize),offset:String(offset)});if(project.value)p.set('projectId',project.value);const d=await json('/api/sessions?'+p);results.innerHTML=d.sessions.map(s=>'<div class="row"><strong>'+esc(s.provider)+'</strong> · '+esc(s.projectId)+'<br><span class="muted">'+esc(s.startedAt)+' · </span><a href="/session?id='+encodeURIComponent(s.id)+'">'+esc(s.id)+'</a></div>').join('')||'<div class="muted">No sessions</div>';updatePager(d.hasMore)}
 async function runSearch(){const q=query.value.trim();if(!q)return;mode='search';const offset=(page-1)*pageSize;const p=new URLSearchParams({q,limit:String(pageSize),offset:String(offset)});if(project.value)p.set('projectId',project.value);const d=await json('/api/search/sessions?'+p);results.innerHTML=d.results.map(r=>'<div class="row"><strong>'+esc(r.role)+'</strong> · <a href="/session?id='+encodeURIComponent(r.sessionId)+'">'+esc(r.sessionId)+'</a><div class="result">'+esc(r.content)+'</div></div>').join('')||'<div class="muted">No matches</div>';updatePager(d.hasMore)}
 async function loadImports(){mode='imports';const offset=(page-1)*pageSize;const p=new URLSearchParams({limit:String(pageSize),offset:String(offset)});if(importProject.value)p.set('projectId',importProject.value);if(provider.value)p.set('provider',provider.value);if(status.value)p.set('status',status.value);const d=await json('/api/imports?'+p);results.innerHTML=d.imports.map(r=>'<div class="row"><span class="badge">'+esc(r.status)+'</span> <strong>'+esc(r.provider)+'</strong> · '+esc(r.projectId)+'<br><a href="/import?id='+encodeURIComponent(r.id)+'">'+esc(r.id)+'</a><br><span class="muted">'+esc(r.startedAt)+' · '+esc(r.sessionsCount)+' sessions · '+esc(r.messagesCount)+' messages</span></div>').join('')||'<div class="muted">No import runs</div>';updatePager(d.hasMore)}
@@ -84,6 +84,7 @@ const server = createServer((request, response) => {
   if (url.pathname === "/health") return json(response, { ok: true });
   if (url.pathname === "/api/status") return json(response, { counts: getSystemCounts(database) });
   if (url.pathname === "/api/projects") return json(response, { projects: listProjects(database) });
+  if (url.pathname === "/api/imports/summary") return json(response, { summary: getImportRunSummary(database) });
   if (url.pathname === "/api/imports") {
     const limit = numberParam(url.searchParams.get("limit"), 50, 100);
     const offset = numberParam(url.searchParams.get("offset"), 0, 100000);
