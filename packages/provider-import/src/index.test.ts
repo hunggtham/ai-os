@@ -5,7 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { openDatabase, runMigrations, upsertProjects } from "@ai-os/database";
-import { getImportRun, getImportRunSummary, importProviderExport, listImportRuns, queryImportRuns } from "./index.js";
+import { getImportRun, getImportRunSummary, importProviderExport, listImportRuns, queryImportRuns, recoverStaleImportRuns } from "./index.js";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsDirectory = resolve(packageDirectory, "../database/migrations");
@@ -49,6 +49,26 @@ test("skips an unchanged successful provider export and queries audit history", 
     assert.equal(summary.failed, 0);
     assert.equal(summary.running, 0);
     assert.ok(summary.latestSucceededAt);
+  } finally {
+    database.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("recovers only stale running import records", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "ai-os-provider-recovery-"));
+  const database = openDatabase(join(directory, "ai-os.db"));
+  try {
+    await runMigrations(database, migrationsDirectory);
+    upsertProjects(database, [{ id: "ai-os", name: "AI OS", status: "active" }]);
+    database.prepare(`INSERT INTO import_runs(id,source_path,project_id,provider,content_hash,status,started_at) VALUES (?,?,?,?,?,'running',?)`).run("stale", "/tmp/stale", "ai-os", "codex", "hash-a", "2026-08-01T00:00:00Z");
+    database.prepare(`INSERT INTO import_runs(id,source_path,project_id,provider,content_hash,status,started_at) VALUES (?,?,?,?,?,'running',?)`).run("fresh", "/tmp/fresh", "ai-os", "codex", "hash-b", "2026-08-06T00:00:00Z");
+
+    const recovered = recoverStaleImportRuns(database, "2026-08-05T00:00:00Z", "2026-08-06T01:00:00Z");
+    assert.equal(recovered, 1);
+    assert.equal(getImportRun(database, "stale")?.status, "failed");
+    assert.equal(getImportRun(database, "stale")?.finishedAt, "2026-08-06T01:00:00Z");
+    assert.equal(getImportRun(database, "fresh")?.status, "running");
   } finally {
     database.close();
     await rm(directory, { recursive: true, force: true });
