@@ -12,6 +12,7 @@
   "dependencies": {
     "@ai-os/config": "workspace:*",
     "@ai-os/database": "workspace:*",
+    "@ai-os/provider-import": "workspace:*",
     "@ai-os/session-store": "workspace:*"
   }
 }
