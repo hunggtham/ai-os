@@ -6,8 +6,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test",
-    "dev": "pnpm -r --sort build && node --experimental-strip-types src/index.ts"
+    "test": "node --test dist/*.test.js",
+    "start": "node dist/entry.js",
+    "dev": "pnpm -r --sort build && node --experimental-strip-types src/entry.ts"
   },
   "dependencies": {
     "@ai-os/config": "workspace:*",

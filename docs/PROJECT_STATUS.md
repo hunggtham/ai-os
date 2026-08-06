@@ -1,219 +1,178 @@
 # AI OS Project Status and Completion Plan
 
-Last updated: 2026-08-06 12:27 KST
+Last updated: 2026-08-06 15:03 KST
 
-## Executive summary
+## Executive status
 
-AI OS is a local-first, provider-independent control plane for AI session archives, durable memory, project knowledge, search, provider imports, dashboard visibility, MCP access, and automation.
+AI OS is in the **v1 completion and hardening** stage.
 
-Current delivery stage: **v1 completion and hardening**.
+Estimated weighted v1 completion: **79%**.
 
-Estimated v1 completion: **72%**.
-
-The estimate is based on weighted completion of the v1 definition of done, not on commit count:
-
-| Area | Weight | Status | Completion |
-| --- | ---: | --- | ---: |
-| Foundation and architecture | 10% | Complete | 100% |
-| Database and migrations | 10% | Complete | 100% |
-| Session archive and search | 10% | Complete | 100% |
-| Durable memory lifecycle | 8% | Complete | 100% |
-| Provider adapters and audited imports | 12% | Complete | 100% |
-| Configured source sync and automation reports | 10% | Complete | 100% |
-| Dashboard and read API | 8% | Substantially complete | 85% |
-| Bootstrap and operator workflow | 7% | In review in PR #21 | 90% |
-| Backup, restore, and privacy hardening | 8% | Not started | 0% |
-| MCP read layer | 8% | Skeleton exists; v1 tools pending | 20% |
-| Reliability and operational hardening | 5% | Partial | 35% |
-| Release packaging and v1 tag | 4% | Not started | 0% |
+| Area | Weight | Completion | Status |
+| --- | ---: | ---: | --- |
+| Foundation and architecture | 10% | 100% | Complete |
+| Database and migrations | 10% | 100% | Complete |
+| Session archive and search | 10% | 100% | Complete |
+| Durable memory lifecycle | 8% | 100% | Complete |
+| Provider adapters and audited imports | 12% | 100% | Complete |
+| Configured source sync and automation reports | 10% | 100% | Complete |
+| Dashboard and read API | 8% | 95% | Privacy hardening in PR #23 |
+| Bootstrap and operator workflow | 7% | 100% | Complete in PR #21 |
+| Backup, restore, and privacy hardening | 8% | 85% | Recovery complete; redaction in PR #23 |
+| MCP read layer | 8% | 20% | Skeleton exists; v1 tools pending |
+| Reliability and operational hardening | 5% | 40% | Smoke gates active; remaining controls pending |
+| Release packaging and v1 tag | 4% | 0% | Not started |
 
 ## Current active milestone
 
-### Milestone P0-A — First-run bootstrap and operator workflow
+### P0-C — Privacy-safe dashboard and API
 
-Status: **Implementation complete; CI fix in progress in PR #21**.
+Pull request: **#23**
 
-Included scope:
+Status: **Implementation complete; final CI pending**.
 
-- idempotent `pnpm bootstrap` command;
-- automatic runtime directory creation;
-- SQLite migration execution;
-- project registry synchronization;
-- safe creation of local import-source configuration;
-- clean temporary-home smoke test;
-- CI smoke gate;
-- official operator guide for macOS and Linux.
+Delivered in this milestone:
 
-Current blocker:
-
-- CI run #58 found that `pnpm --filter ... exec` changed the process working directory to `apps/cli`, causing migration lookup to use an invalid nested path.
-- Fix committed: bootstrap now launches `apps/cli/dist/index.js` directly while preserving the repository root as `cwd`.
+- reusable path-redaction library;
+- recursive redaction for `path`, `sourcePath`, `archivePath`, `registryPath`, directory, and root fields;
+- `<repo>/...` aliases for repository-local paths;
+- `~/...` aliases for paths under the current home directory;
+- `<local>/filename` aliases for other absolute local paths;
+- relative paths preserved unchanged;
+- centralized redaction for every JSON API response;
+- redaction in session and import HTML detail pages;
+- explicit `AI_OS_EXPOSE_RAW_PATHS=1` local debugging opt-in;
+- health/status metadata indicating whether raw paths are exposed;
+- regression tests and privacy documentation.
 
 Acceptance criteria:
 
-- [x] Bootstrap source implementation exists.
-- [x] Repeated runs do not overwrite local source configuration.
-- [x] Runtime directories are created safely.
-- [x] Database migrations and project registry sync are executed.
-- [x] Operator guide exists.
-- [x] Clean-home smoke command exists.
-- [ ] Latest PR CI is green after the working-directory fix.
-- [ ] PR #21 is merged to `main`.
+- [x] Default JSON responses do not expose absolute source, archive, registry, or project paths.
+- [x] Dashboard HTML does not expose raw import or archive paths by default.
+- [x] Relative paths remain readable.
+- [x] Raw paths require an explicit environment-variable opt-in.
+- [x] Path redaction behavior has automated tests.
+- [x] Privacy behavior is documented.
+- [ ] Latest CI is green for the fully integrated server.
+- [ ] PR #23 is merged to `main`.
+
+## Recently completed milestones
+
+### P0-A — Bootstrap and operator workflow — Complete
+
+Merged in PR #21.
+
+- idempotent `pnpm bootstrap`;
+- runtime directory creation;
+- SQLite migrations;
+- project registry synchronization;
+- safe local source-config initialization;
+- clean temporary-home smoke test;
+- CI clean-machine gate;
+- macOS/Linux operator guide.
+
+### P0-B — Backup, restore, and disaster recovery — Complete
+
+Merged in PR #22.
+
+- SQLite-consistent backup using `VACUUM INTO`;
+- WAL checkpoint before snapshot;
+- versioned backup manifest;
+- SHA-256 and file-size validation;
+- local source-registry backup;
+- restore overwrite protection;
+- `integrity_check` before installation;
+- round-trip recovery smoke test;
+- CI disaster-recovery gate;
+- disaster-recovery runbook.
 
 ## Definition of done for v1
 
-AI OS v1 is complete only when all criteria below are satisfied:
+AI OS v1 is complete only when all of the following are satisfied:
 
-1. A clean machine can install dependencies, initialize `AI_OS_HOME`, run migrations, validate configuration, and start the dashboard using documented commands.
-2. ChatGPT and Codex/OpenCodex exports can be imported through configured local sources with deterministic and idempotent results.
-3. Session messages can be searched locally and viewed through a localhost-only dashboard.
-4. Durable memory can be imported, listed, invalidated, superseded, expired, and retrieved through a stable service boundary.
-5. A local MCP server exposes read-only project, session, search, memory, import-health, and source-freshness tools with stable schemas.
-6. Provider source synchronization can run unattended and produce stable JSON reports and exit codes.
-7. Backup, restore, privacy, redaction, and disaster-recovery procedures are implemented, documented, and smoke-tested.
-8. CI validates build, type checking, tests, migrations, package boundaries, and a clean-machine end-to-end smoke flow.
-9. Implemented architecture decisions are marked `Accepted`; unfinished ideas are moved to the post-v1 backlog.
-10. README, operator guide, installation guide, upgrade guide, and release checklist describe the full workflow without relying on chat history.
+1. A clean machine can install dependencies, initialize `AI_OS_HOME`, run migrations, validate configuration, and start the system through documented commands.
+2. ChatGPT and Codex/OpenCodex exports can be imported through deterministic and idempotent configured-source workflows.
+3. Session content can be searched locally and viewed through a localhost-only dashboard.
+4. Durable memory supports import, list, invalidate, supersede, expiry, and stable read retrieval.
+5. A local read-only MCP server exposes project, session, message, search, memory, import-health, and source-freshness tools.
+6. Source synchronization supports unattended execution, stable JSON reports, and automation-safe exit codes.
+7. Backup, restore, privacy redaction, and disaster recovery are implemented, documented, and smoke-tested.
+8. CI validates build, type checks, tests, package boundaries, clean bootstrap, backup/restore, and full end-to-end operation.
+9. Implemented ADRs are marked `Accepted`; deferred ideas are explicitly moved to post-v1.
+10. README, operator, installation, upgrade, rollback, and release documentation are complete without requiring chat history.
 
-## Completed capabilities
+## Completed capability inventory
 
-### 1. Foundation and governance — Complete
+### Platform foundation
 
-- Monorepo structure and workspace package boundaries.
-- Architecture documentation and ADR framework.
-- Agent and contribution instructions.
-- Project registry and project templates.
-- Git as the source of truth for code, knowledge, decisions, and sanitized session archives.
-- Local-first privacy boundary for provider exports, databases, secrets, and machine-specific paths.
+- TypeScript/pnpm monorepo and package boundaries.
+- GitHub source-of-truth workflow.
+- Project registry, templates, architecture docs, ADR framework, and agent instructions.
+- Local-first privacy model.
 
-### 2. Local persistence — Complete
+### Persistence and retrieval
 
-- SQLite database package.
-- Ordered migrations and migration tracking.
-- Project, session, message, memory, and provider-import audit tables.
-- Deterministic upserts and idempotent persistence behavior.
-- Dashboard read models and system counts.
+- SQLite migrations and migration tracking.
+- Projects, sessions, messages, memories, import runs, and source-audit records.
+- Deterministic upserts and idempotent imports.
+- Local full-text session-message search.
 
-### 3. Session archive and local search — Complete
+### Durable memory
 
-- Session manifest schema and validation.
-- Markdown/archive ingestion.
-- Batch-directory ingestion with failure isolation.
-- Session-message replacement.
-- Local full-text message search.
-- Session list and detail views.
+- Schema validation.
+- Import, list, invalidate, supersede, and expire operations.
+- Scope, subject, category, confidence, provenance, lifecycle status, and timestamps.
 
-### 4. Durable memory lifecycle — Complete for v1 CLI boundary
+### Provider ingestion
 
-- Memory schema and validation.
-- Import and list operations.
-- Invalidation, supersession, and expiry.
-- Scope, subject, category, confidence, provenance, status, timestamps, and supersession metadata.
-
-### 5. Provider import pipeline — Complete
-
-- Provider adapter boundary and normalized archive contract.
+- Provider-adapter boundary.
 - ChatGPT export ingestion.
-- Codex/OpenCodex JSONL-style ingestion.
+- Codex/OpenCodex JSONL ingestion.
 - Deterministic session identity.
-- Normalized archive inspection and validation.
+- Normalized archive validation.
 - Import-run audit history.
-- SHA-256 unchanged-source detection.
-- Force rebuild support.
-- Filtered and paginated audit queries.
+- SHA-256 unchanged-source detection and force rebuild.
 
-### 6. Configured provider sources — Complete
+### Configured source operations
 
-- Versioned YAML registry.
+- Versioned YAML source registry.
 - Absolute, relative, home-relative, and environment-variable paths.
-- Duplicate source detection.
-- Disabled sources.
-- Per-source failure isolation.
+- Duplicate detection, disabled sources, and failure isolation.
 - Freshness states: `new`, `changed`, `synced`, `missing`, `disabled`, and `error`.
-- Actionable-only synchronization for `new` and `changed` sources.
+- Actionable-only synchronization.
+- Stable JSON reports and exit codes for cron, launchd, systemd, and n8n.
 
-### 7. Automation reporting — Complete
+### Dashboard and API
 
-- Dedicated `ai-os-source-sync` binary.
-- Stable JSON report contract.
-- Optional report-file output.
-- Timing and per-source results.
-- Automation-safe exit codes.
-- Compatibility with cron, launchd, systemd timers, and n8n.
+- Localhost-only, read-only service.
+- Project/session views and message search.
+- Import history, detail, and health summary.
+- Source freshness and state inspection.
+- Privacy-safe path aliases by default.
 
-### 8. Dashboard and API — Substantially complete
+### Operations
 
-Available:
+- First-run bootstrap.
+- Clean-machine smoke test.
+- Consistent backup and validated restore.
+- Disaster-recovery smoke test.
+- Operator, privacy, and recovery documentation.
 
-- localhost-only, read-only dashboard;
-- projects and sessions;
-- session search and details;
-- provider import history and details;
-- import health summary;
-- configured source freshness;
-- source-state filtering;
-- missing-registry graceful handling;
-- read-only JSON API endpoints.
+## Delivery history
 
-Remaining for v1 hardening:
-
-- path redaction by default;
-- explicit API tests for redacted output;
-- broader dashboard/API regression tests.
-
-## Merged delivery history
-
-### Foundation through Phase 2
-
-- PR #1: Phase 0 foundation.
-- PR #2–#7: Phase 1 architecture, schemas, packages, and local data foundations.
-- PR #8–#11: accelerated Phase 2 ingestion, database, session search, and memory lifecycle work.
-
-### Phase 3 provider automation
-
-- PR #12: provider adapter integration.
-- PR #13: audited provider-import service and unchanged-source skipping.
-- PR #14: import audit dashboard and health summary.
-- PR #15: configured provider-source registry and batch sync.
-- PR #16: source freshness inspection.
-- PR #17: source freshness dashboard and API.
-- PR #18: actionable-only provider-source synchronization.
-- PR #19: stable actionable source-sync reports.
-
-### Project completion control
-
+- PR #1–#7: foundation, schemas, contracts, and local data architecture.
+- PR #8–#11: accelerated ingestion, persistence, search, and memory lifecycle.
+- PR #12–#19: provider adapters, audited imports, configured sources, freshness, actionable sync, and automation reports.
 - PR #20: authoritative v1 definition of done and bounded completion plan.
-
-### Current open delivery
-
-- PR #21: first-run bootstrap, clean-home smoke, CI smoke gate, and operator guide.
+- PR #21: bootstrap, clean-machine smoke, and operator guide.
+- PR #22: backup, restore, and disaster recovery.
+- PR #23: privacy-safe path redaction for dashboard/API — active.
 
 ## Remaining roadmap to v1
 
-### P0-B — Backup, restore, privacy, and disaster recovery
+### P0-D — MCP read layer
 
-Target scope:
-
-- database-consistent backup command;
-- separate backup of machine-local configuration;
-- restore command with validation;
-- backup manifest containing version, timestamps, file hashes, and migration state;
-- round-trip integration test: create → backup → mutate/delete → restore → verify;
-- safe browser path aliases instead of absolute paths;
-- explicit raw-path opt-in only for local operator debugging;
-- retention and encryption recommendations.
-
-Acceptance criteria:
-
-- [ ] Backup can be created while respecting SQLite consistency.
-- [ ] Restore refuses invalid or incompatible archives.
-- [ ] Round-trip test proves data recovery.
-- [ ] Dashboard and default API responses do not expose absolute local paths.
-- [ ] Operator guide contains disaster-recovery steps.
-
-### P0-C — MCP read layer
-
-Target tools:
+Required tools:
 
 - list projects;
 - list sessions;
@@ -222,88 +181,80 @@ Target tools:
 - search session messages;
 - list durable memories;
 - get import health;
-- inspect configured source freshness.
-
-Constraints:
-
-- read-only for v1;
-- local database only;
-- stable JSON schemas;
-- pagination and input validation;
-- temporary-database integration tests.
+- inspect source freshness.
 
 Acceptance criteria:
 
 - [ ] MCP server starts through a documented command.
-- [ ] Every v1 tool has a stable schema.
-- [ ] Integration tests exercise real temporary SQLite data.
-- [ ] Mutation operations remain CLI-only.
+- [ ] Every tool has validated input and stable JSON output.
+- [ ] Temporary SQLite integration tests exercise real data.
+- [ ] All v1 MCP tools remain read-only.
+- [ ] MCP output follows privacy-safe path rules.
 
-### P0-D — Full clean-machine end-to-end smoke
+### P0-E — Full end-to-end smoke
 
-The final smoke flow must:
+The final clean-machine flow must:
 
-- install from lockfile;
+- install from the lockfile;
 - build all workspaces;
 - bootstrap a temporary home;
 - import a sanitized provider fixture;
-- search the imported message;
-- run source status;
-- run actionable sync;
-- start dashboard;
-- verify `/health` and at least one data endpoint;
+- search imported content;
+- inspect and sync configured sources;
+- create and validate a backup;
+- start dashboard and verify `/health` plus a data endpoint;
 - start MCP and execute at least one read tool;
-- shut down cleanly.
+- shut all processes down cleanly.
 
-### P0-E — Architecture decision closure
+### P0-F — Architecture decision closure
 
-- review every ADR;
-- mark implemented decisions `Accepted`;
-- mark replaced decisions `Superseded`;
-- move non-v1 proposals to post-v1 backlog;
-- ensure architecture documentation matches actual code.
+- [ ] Review every ADR.
+- [ ] Mark implemented decisions `Accepted`.
+- [ ] Mark replaced decisions `Superseded`.
+- [ ] Move unfinished proposals to the post-v1 backlog.
+- [ ] Align architecture docs with actual runtime behavior.
 
 ### P1 — Reliability required for daily use
 
-- [ ] realistic ChatGPT fixture regression coverage;
-- [ ] realistic Codex/OpenCodex fixture regression coverage;
-- [ ] structured CLI error envelopes;
-- [ ] source-sync process lock;
-- [ ] stale `running` import recovery;
-- [ ] dashboard/API regression tests;
-- [ ] database integrity, analyze, and optional vacuum commands;
-- [ ] CLI, migration, and report-contract version reporting.
+- [ ] Realistic sanitized ChatGPT regression fixture.
+- [ ] Realistic sanitized Codex/OpenCodex regression fixture.
+- [ ] Structured CLI error envelopes.
+- [ ] Source-sync process lock.
+- [ ] Stale `running` import recovery.
+- [ ] Broader dashboard/API integration tests.
+- [ ] Database integrity, analyze, and optional vacuum commands.
+- [ ] CLI, migration, and report-contract version output.
 
 ### P2 — Release packaging
 
-- [ ] `CHANGELOG.md`;
-- [ ] installation guide;
-- [ ] upgrade and rollback guide;
-- [ ] release checklist;
-- [ ] sanitized demonstration workspace;
-- [ ] final full smoke run on `main`;
-- [ ] tag `v1.0.0`.
+- [ ] `CHANGELOG.md`.
+- [ ] Installation guide.
+- [ ] Upgrade and rollback guide.
+- [ ] Release checklist.
+- [ ] Sanitized demonstration workspace.
+- [ ] Final full smoke run on `main`.
+- [ ] Tag `v1.0.0`.
 
-## Planned accelerated execution sequence
+## Accelerated execution sequence
 
-1. Finish and merge PR #21.
-2. Deliver backup/restore and privacy redaction in one large PR.
-3. Deliver MCP read tools and integration tests in one large PR.
-4. Deliver reliability hardening and full end-to-end smoke in one or two PRs.
-5. Close ADRs and add release documentation.
-6. Run final CI and smoke validation.
+1. Finish CI and merge PR #23.
+2. Deliver all MCP read tools and integration tests in one consolidated PR.
+3. Deliver reliability controls and full end-to-end smoke in one or two PRs.
+4. Close ADRs and align architecture documentation.
+5. Add release documentation and sanitized demo workspace.
+6. Run final validation on `main`.
 7. Tag `v1.0.0`.
 
 ## Risk register
 
-| Risk | Impact | Mitigation |
+| Risk | Impact | Current mitigation |
 | --- | --- | --- |
-| Provider export formats change | Import regression | Keep adapters isolated and maintain realistic sanitized fixtures. |
-| Absolute paths leak through local UI/API | Privacy exposure | Redact by default and expose raw paths only through explicit local opt-in. |
-| Concurrent scheduled syncs overlap | Corrupt or confusing audit state | Add process lock and stale-run recovery. |
-| SQLite backup is copied in an inconsistent state | Restore failure | Use SQLite backup/checkpoint-safe mechanism and validate restored database. |
-| MCP expands into a mutation surface | Increased v1 complexity and risk | Keep all MCP v1 tools read-only. |
-| Scope grows indefinitely | Project never reaches release | New non-blocking features go to post-v1 backlog. |
+| Provider export formats change | Import regression | Isolated adapters; realistic fixtures remain P1. |
+| Local paths leak in UI/API | Privacy exposure | Default recursive redaction; explicit raw opt-in only. |
+| Scheduled sync processes overlap | Confusing or corrupt audit state | Process lock remains P1. |
+| SQLite backup is inconsistent | Restore failure | WAL checkpoint, `VACUUM INTO`, hashes, and integrity validation. |
+| MCP expands into mutation surface | Complexity and safety risk | v1 MCP is strictly read-only. |
+| Scope grows indefinitely | Delayed release | Non-blocking work is deferred to post-v1. |
 
 ## Post-v1 backlog
 
@@ -322,9 +273,9 @@ The final smoke flow must:
 
 ## Delivery policy until v1
 
-1. Changes are grouped into coherent, larger PRs.
-2. PRs are opened review-ready, never draft.
-3. CI failures are fixed on the same branch.
-4. PRs are merged automatically when CI is green and scope acceptance criteria are satisfied.
-5. This file is updated whenever milestone status changes.
-6. Features outside the v1 definition of done are deferred to post-v1.
+1. Changes are grouped into coherent, review-ready PRs.
+2. Draft PRs are not used.
+3. CI failures are repaired on the same branch.
+4. Green, complete PRs are merged automatically.
+5. This file is updated whenever a milestone changes.
+6. Features outside the v1 definition of done are deferred.
