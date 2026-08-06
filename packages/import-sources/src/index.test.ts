@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { openDatabase, runMigrations, upsertProjects } from "@ai-os/database";
 import { importProviderExport } from "@ai-os/provider-import";
-import { inspectImportSources, loadImportSourceRegistry } from "./index.js";
+import { inspectImportSources, loadImportSourceRegistry, summarizeImportSourceStatuses } from "./index.js";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsDirectory = resolve(packageDirectory, "../database/migrations");
@@ -58,7 +58,7 @@ sources:
   }
 });
 
-test("reports new, synced, changed, missing and disabled source states", async () => {
+test("reports and summarizes provider source freshness", async () => {
   const directory = await mkdtemp(join(tmpdir(), "ai-os-import-source-status-"));
   const database = openDatabase(join(directory, "ai-os.db"));
   const sourcePath = join(directory, "codex.jsonl");
@@ -72,11 +72,29 @@ test("reports new, synced, changed, missing and disabled source states", async (
       { id: "disabled", path: join(directory, "disabled.jsonl"), projectId: "ai-os", enabled: false },
     ] };
 
-    assert.deepEqual((await inspectImportSources(database, registry)).map((source) => source.state), ["new", "missing", "disabled"]);
+    const initial = await inspectImportSources(database, registry);
+    assert.deepEqual(initial.map((source) => source.state), ["new", "missing", "disabled"]);
+    assert.deepEqual(summarizeImportSourceStatuses(initial), {
+      total: 3,
+      actionable: 1,
+      healthy: false,
+      disabled: 1,
+      missing: 1,
+      new: 1,
+      changed: 0,
+      synced: 0,
+      error: 0,
+    });
+
     await importProviderExport(database, { path: sourcePath, projectId: "ai-os", providerHint: "codex" });
-    assert.equal((await inspectImportSources(database, registry, "codex"))[0]?.state, "synced");
+    const synced = await inspectImportSources(database, registry, "codex");
+    assert.equal(synced[0]?.state, "synced");
+    assert.equal(summarizeImportSourceStatuses(synced).healthy, true);
+
     await writeFile(sourcePath, JSON.stringify({ role: "user", content: "changed", timestamp: "2026-08-06T00:00:00Z" }));
-    assert.equal((await inspectImportSources(database, registry, "codex"))[0]?.state, "changed");
+    const changed = await inspectImportSources(database, registry, "codex");
+    assert.equal(changed[0]?.state, "changed");
+    assert.equal(summarizeImportSourceStatuses(changed).actionable, 1);
   } finally {
     database.close();
     await rm(directory, { recursive: true, force: true });
