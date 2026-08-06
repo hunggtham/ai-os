@@ -27,13 +27,15 @@ export interface ImportSourceSyncResult {
   error?: string | undefined;
 }
 
+export type ImportSourceState = "disabled" | "missing" | "new" | "changed" | "synced" | "error";
+
 export interface ImportSourceStatus {
   id: string;
   path: string;
   projectId: string;
   provider?: string | undefined;
   enabled: boolean;
-  state: "disabled" | "missing" | "new" | "changed" | "synced" | "error";
+  state: ImportSourceState;
   exists: boolean;
   sizeBytes?: number | undefined;
   modifiedAt?: string | undefined;
@@ -41,6 +43,12 @@ export interface ImportSourceStatus {
   lastImportStatus?: string | undefined;
   lastImportedAt?: string | undefined;
   error?: string | undefined;
+}
+
+export interface ImportSourceSummary extends Record<ImportSourceState, number> {
+  total: number;
+  actionable: number;
+  healthy: boolean;
 }
 
 interface RawImportAuditRow {
@@ -107,6 +115,24 @@ function latestImport(database: DatabaseSync, source: ImportSourceDefinition): R
     ORDER BY started_at DESC
     LIMIT 1
   `).get(...values) as unknown as RawImportAuditRow | undefined;
+}
+
+export function summarizeImportSourceStatuses(statuses: ImportSourceStatus[]): ImportSourceSummary {
+  const summary: ImportSourceSummary = {
+    total: statuses.length,
+    actionable: 0,
+    healthy: true,
+    disabled: 0,
+    missing: 0,
+    new: 0,
+    changed: 0,
+    synced: 0,
+    error: 0,
+  };
+  for (const status of statuses) summary[status.state] += 1;
+  summary.actionable = summary.new + summary.changed;
+  summary.healthy = summary.missing === 0 && summary.error === 0;
+  return summary;
 }
 
 export async function inspectImportSources(
