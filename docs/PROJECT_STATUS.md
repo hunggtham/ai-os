@@ -1,12 +1,12 @@
 # AI OS Project Status and Completion Plan
 
-Last updated: 2026-08-06 15:22 KST
+Last updated: 2026-08-06 16:52 KST
 
 ## Executive status
 
 AI OS is in the **v1 completion and hardening** stage.
 
-Estimated weighted v1 completion: **85%**.
+Estimated weighted v1 completion: **89%**.
 
 | Area | Weight | Completion | Status |
 | --- | ---: | ---: | --- |
@@ -19,88 +19,75 @@ Estimated weighted v1 completion: **85%**.
 | Dashboard and read API | 8% | 100% | Complete through PR #23 |
 | Bootstrap and operator workflow | 7% | 100% | Complete through PR #21 |
 | Backup, restore, and privacy hardening | 8% | 100% | Complete through PR #22–#23 |
-| MCP read layer | 8% | 90% | Implementation complete in PR #24; CI hardening pending |
-| Reliability and operational hardening | 5% | 45% | Smoke gates active; remaining controls pending |
+| MCP read layer | 8% | 100% | Complete through PR #24 |
+| Reliability and operational hardening | 5% | 70% | Full E2E smoke active in PR #25 |
 | Release packaging and v1 tag | 4% | 0% | Not started |
 
 ## Current active milestone
 
-### P0-D — Privacy-safe MCP read layer
+### P0-E — Full clean-machine end-to-end smoke
 
-Pull request: **#24**
+Pull request: **#25**
 
-Status: **Implementation complete; CI fixes and final documentation in progress**.
+Status: **Implementation complete; CI hardening in progress**.
 
-Delivered in this milestone:
+The smoke flow now validates:
 
-- isolated, testable MCP read-layer module;
-- `list_projects`;
-- `list_sessions` with project filtering and pagination;
-- `get_session`;
-- `list_session_messages` with pagination;
-- `search_session_messages` with project filtering and pagination;
-- `list_memories` with scope, subject, and text filtering;
-- `get_import_health` with summary and paginated audit history;
-- `inspect_source_freshness` with missing-registry handling;
-- `get_system_status` without exposing runtime paths;
-- bounded `limit` and non-negative `offset` validation;
-- stable `hasMore` pagination metadata;
-- privacy-safe `<repo>`, `~`, and `<local>` path aliases;
-- explicit `AI_OS_EXPOSE_RAW_PATHS=1` local-debugging opt-in;
-- temporary SQLite integration test using real migrations;
-- official MCP operator guide and generic stdio client configuration.
+- isolated temporary `AI_OS_HOME`;
+- bootstrap, migrations, and project-registry synchronization;
+- sanitized Codex JSONL fixture creation;
+- configured source registry validation;
+- source freshness transition from `new` to `synced`;
+- actionable source synchronization and audited provider import;
+- full-text retrieval of imported content;
+- SQLite-consistent backup creation;
+- dashboard startup plus `/health` and `/api/sessions` checks;
+- MCP initialization over JSON-RPC stdio;
+- a real `get_system_status` MCP tool invocation;
+- graceful process termination and temporary-runtime cleanup.
 
 Acceptance criteria:
 
-- [x] MCP server has a documented start command.
-- [x] Every v1 tool has validated input.
-- [x] List/search tools expose stable pagination metadata.
-- [x] Temporary SQLite integration tests exercise real migrated data.
-- [x] MCP output follows privacy-safe path rules.
-- [x] MCP remains strictly read-only.
-- [x] Missing source registry is handled without crashing.
-- [ ] Latest PR CI is green after exact-optional-property fixes.
-- [ ] PR #24 is merged to `main`.
+- [x] Smoke uses a clean temporary runtime.
+- [x] A sanitized provider fixture is imported through configured-source synchronization.
+- [x] Imported content is searchable.
+- [x] Source freshness transitions are verified.
+- [x] A backup is created and detected.
+- [x] Dashboard health and data endpoints are verified.
+- [x] MCP starts and executes a real read tool through stdio.
+- [x] Processes and temporary data are cleaned up.
+- [ ] Latest CI is green after source-registry fixture correction.
+- [ ] PR #25 is merged to `main`.
 
-## Recently completed milestones
+## Completed milestones
 
 ### P0-A — Bootstrap and operator workflow — Complete
 
 Merged in PR #21.
 
-- idempotent `pnpm bootstrap`;
-- runtime directory creation;
-- SQLite migrations;
-- project registry synchronization;
-- safe local source-config initialization;
-- clean temporary-home smoke test;
-- CI clean-machine gate;
-- macOS/Linux operator guide.
-
 ### P0-B — Backup, restore, and disaster recovery — Complete
 
 Merged in PR #22.
-
-- SQLite-consistent backup using `VACUUM INTO`;
-- WAL checkpoint before snapshot;
-- versioned backup manifest;
-- SHA-256 and file-size validation;
-- local source-registry backup;
-- restore overwrite protection;
-- `integrity_check` before installation;
-- round-trip recovery smoke test;
-- CI disaster-recovery gate;
-- disaster-recovery runbook.
 
 ### P0-C — Privacy-safe dashboard and API — Complete
 
 Merged in PR #23.
 
-- centralized JSON response redaction;
-- dashboard HTML path redaction;
-- source, archive, registry, and project path aliases;
-- explicit raw-path debugging opt-in;
-- privacy regression tests and documentation.
+### P0-D — Privacy-safe MCP read layer — Complete
+
+Merged in PR #24.
+
+Delivered tools:
+
+- `list_projects`;
+- `list_sessions`;
+- `get_session`;
+- `list_session_messages`;
+- `search_session_messages`;
+- `list_memories`;
+- `get_import_health`;
+- `inspect_source_freshness`;
+- `get_system_status`.
 
 ## Definition of done for v1
 
@@ -117,53 +104,6 @@ AI OS v1 is complete only when all of the following are satisfied:
 9. Implemented ADRs are marked `Accepted`; deferred ideas are explicitly moved to post-v1.
 10. README, operator, installation, upgrade, rollback, and release documentation are complete without requiring chat history.
 
-## Completed capability inventory
-
-### Platform foundation
-
-- TypeScript/pnpm monorepo and package boundaries.
-- GitHub source-of-truth workflow.
-- Project registry, templates, architecture docs, ADR framework, and agent instructions.
-- Local-first privacy model.
-
-### Persistence and retrieval
-
-- SQLite migrations and migration tracking.
-- Projects, sessions, messages, memories, import runs, and source-audit records.
-- Deterministic upserts and idempotent imports.
-- Local full-text session-message search.
-
-### Durable memory
-
-- Schema validation.
-- Import, list, invalidate, supersede, and expire operations.
-- Scope, subject, category, confidence, provenance, lifecycle status, and timestamps.
-
-### Provider ingestion and source operations
-
-- ChatGPT and Codex/OpenCodex adapters.
-- Deterministic session identity and normalized archive validation.
-- Import-run audit history and unchanged-source detection.
-- Versioned YAML source registry.
-- Freshness inspection and actionable-only synchronization.
-- Stable JSON reports and automation-safe exit codes.
-
-### Dashboard, API, and MCP
-
-- Localhost-only dashboard and read API.
-- Project/session views and full-text search.
-- Import health and source freshness.
-- Default path redaction.
-- Read-only MCP v1 tool surface with pagination and input validation.
-
-### Operations
-
-- First-run bootstrap.
-- Clean-machine smoke test.
-- Consistent backup and validated restore.
-- Disaster-recovery smoke test.
-- Operator, privacy, recovery, and MCP documentation.
-
 ## Delivery history
 
 - PR #1–#7: foundation, schemas, contracts, and local data architecture.
@@ -173,24 +113,10 @@ AI OS v1 is complete only when all of the following are satisfied:
 - PR #21: bootstrap, clean-machine smoke, and operator guide.
 - PR #22: backup, restore, and disaster recovery.
 - PR #23: privacy-safe path redaction for dashboard/API.
-- PR #24: privacy-safe MCP read layer — active.
+- PR #24: privacy-safe MCP read layer.
+- PR #25: full clean-machine end-to-end smoke — active.
 
 ## Remaining roadmap to v1
-
-### P0-E — Full end-to-end smoke
-
-The final clean-machine flow must:
-
-- install from the lockfile;
-- build all workspaces;
-- bootstrap a temporary home;
-- import a sanitized provider fixture;
-- search imported content;
-- inspect and sync configured sources;
-- create and validate a backup;
-- start dashboard and verify `/health` plus a data endpoint;
-- start MCP and execute at least one read tool;
-- shut all processes down cleanly.
 
 ### P0-F — Architecture decision closure
 
@@ -203,7 +129,7 @@ The final clean-machine flow must:
 ### P1 — Reliability required for daily use
 
 - [ ] Realistic sanitized ChatGPT regression fixture.
-- [ ] Realistic sanitized Codex/OpenCodex regression fixture.
+- [ ] Realistic sanitized Codex/OpenCodex regression fixture beyond the compact E2E fixture.
 - [ ] Structured CLI error envelopes.
 - [ ] Source-sync process lock.
 - [ ] Stale `running` import recovery.
@@ -223,38 +149,12 @@ The final clean-machine flow must:
 
 ## Accelerated execution sequence
 
-1. Finish CI and merge PR #24.
-2. Deliver reliability controls and full end-to-end smoke in one consolidated PR where practical.
-3. Close ADRs and align architecture documentation.
+1. Finish CI and merge PR #25.
+2. Close ADRs and align architecture documentation.
+3. Deliver required reliability controls in one consolidated PR.
 4. Add release documentation and sanitized demo workspace.
 5. Run final validation on `main`.
 6. Tag `v1.0.0`.
-
-## Risk register
-
-| Risk | Impact | Current mitigation |
-| --- | --- | --- |
-| Provider export formats change | Import regression | Isolated adapters; realistic fixtures remain P1. |
-| Local paths leak through read surfaces | Privacy exposure | Default recursive redaction in dashboard/API and MCP. |
-| Scheduled sync processes overlap | Confusing or corrupt audit state | Process lock remains P1. |
-| SQLite backup is inconsistent | Restore failure | WAL checkpoint, `VACUUM INTO`, hashes, and integrity validation. |
-| MCP expands into mutation surface | Complexity and safety risk | v1 MCP is strictly read-only. |
-| Scope grows indefinitely | Delayed release | Non-blocking work is deferred to post-v1. |
-
-## Post-v1 backlog
-
-- dashboard write operations;
-- remote or multi-user hosting;
-- network authentication and authorization;
-- automatic provider-export acquisition;
-- continuous filesystem watching;
-- vector embeddings and semantic retrieval;
-- external Mem0/OpenMemory integration;
-- automatic memory extraction from sessions;
-- provider-specific write adapters;
-- mobile application;
-- hosted multi-machine synchronization;
-- plugin or workflow marketplace.
 
 ## Delivery policy until v1
 
