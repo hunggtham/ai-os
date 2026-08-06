@@ -1,0 +1,2 @@
+{"session_id":"demo-release-session","model":"synthetic-model","role":"user","content":"DEMO_RELEASE_WORKFLOW: verify a sanitized AI OS v1 import.","timestamp":"2026-08-06T00:00:00Z"}
+{"session_id":"demo-release-session","model":"synthetic-model","role":"assistant","content":"The synthetic session was imported without private data.","timestamp":"2026-08-06T00:00:01Z"}
