@@ -32,17 +32,36 @@ function page(input: PageInput, max = 200): { limit: number; offset: number } {
   return { limit, offset };
 }
 
+function isWindowsAbsolute(value: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(value);
+}
+
+function portableBasename(value: string): string {
+  return value.split(/[\\/]/).filter(Boolean).at(-1) ?? basename(value);
+}
+
 function aliasPath(value: string, options: ReadLayerOptions): string {
-  if (options.exposeRawPaths || !isAbsolute(value)) return value;
-  for (const [root, prefix] of [[options.repositoryRoot, "<repo>"], [options.home ?? homedir(), "~"]] as const) {
-    if (!root) continue;
-    const candidate = relative(root, value);
-    if (candidate === "") return prefix;
-    if (candidate !== ".." && !candidate.startsWith(`..${sep}`) && !isAbsolute(candidate)) {
-      return `${prefix}/${candidate.split(sep).join("/")}`;
+  const windowsAbsolute = isWindowsAbsolute(value);
+  if (options.exposeRawPaths || (!isAbsolute(value) && !windowsAbsolute)) return value;
+  if (!windowsAbsolute) {
+    for (const [root, prefix] of [[options.repositoryRoot, "<repo>"], [options.home ?? homedir(), "~"]] as const) {
+      if (!root) continue;
+      const candidate = relative(root, value);
+      if (candidate === "") return prefix;
+      if (candidate !== ".." && !candidate.startsWith(`..${sep}`) && !isAbsolute(candidate)) {
+        return `${prefix}/${candidate.split(sep).join("/")}`;
+      }
     }
   }
-  return `<local>/${basename(value)}`;
+  return `<local>/${portableBasename(value)}`;
+}
+
+function redactTextPaths(value: string, options: ReadLayerOptions): string {
+  if (options.exposeRawPaths) return value;
+  const redactMatch = (match: string): string => aliasPath(match, options);
+  return value
+    .replace(/\/(?:[^/\s'"<>:]+\/)*[^/\s'"<>:]+/g, redactMatch)
+    .replace(/[A-Za-z]:\\(?:[^\\\s'"<>:]+\\)*[^\\\s'"<>:]+/g, redactMatch);
 }
 
 function redact<T>(value: T, options: ReadLayerOptions): T {
@@ -51,9 +70,13 @@ function redact<T>(value: T, options: ReadLayerOptions): T {
   const output: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
     const normalized = key.replace(/[_-]/g, "").toLowerCase();
-    output[key] = typeof item === "string" && (normalized.endsWith("path") || normalized.endsWith("root") || normalized.endsWith("directory"))
-      ? aliasPath(item, options)
-      : redact(item, options);
+    if (typeof item === "string" && (normalized.endsWith("path") || normalized.endsWith("root") || normalized.endsWith("directory"))) {
+      output[key] = aliasPath(item, options);
+    } else if (typeof item === "string" && (normalized === "error" || normalized === "errormessage" || normalized === "message")) {
+      output[key] = redactTextPaths(item, options);
+    } else {
+      output[key] = redact(item, options);
+    }
   }
   return output as T;
 }
