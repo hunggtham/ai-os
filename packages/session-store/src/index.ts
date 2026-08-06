@@ -107,7 +107,7 @@ export function searchSessionMessages(
   limit = 50,
   offset = 0,
 ): SessionSearchResult[] {
-  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 200);
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 201);
   const safeOffset = Math.min(Math.max(Math.trunc(offset), 0), 100000);
   const sql = projectId
     ? `
