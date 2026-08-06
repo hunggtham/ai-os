@@ -23,21 +23,26 @@ async function validateRegistry(pathArg?: string): Promise<void> { const path=re
 async function syncRegistry(pathArg?: string): Promise<void> {
   const path=resolve(pathArg??"projects/registry.yaml");
   const registry=await loadProjectRegistry(path);
-  const synced=await withDatabase(db=>upsertProjects(db,registry.projects.map(project=>({
-    id:project.id,
-    name:project.name,
-    ...(typeof project.repository==="string"
-      ? {repository:project.repository}
-      : project.repository?.full_name
-        ? {repository:project.repository.full_name}
-        : {}),
-    ...(project.local_path
-      ? {localPath:project.local_path}
-      : project.local_paths?.[0]
-        ? {localPath:project.local_paths[0]}
-        : {}),
-    status:project.status,
-  }))));
+  const rows=registry.projects.map(project=>{
+    const repository=typeof project.repository==="string"
+      ? project.repository
+      : typeof project.repository?.full_name==="string"
+        ? project.repository.full_name
+        : undefined;
+    const localPath=typeof project.local_path==="string"
+      ? project.local_path
+      : typeof project.local_paths?.[0]==="string"
+        ? project.local_paths[0]
+        : undefined;
+    return {
+      id:String(project.id),
+      name:String(project.name),
+      ...(repository?{repository:String(repository)}:{}),
+      ...(localPath?{localPath:String(localPath)}:{}),
+      status:String(project.status),
+    };
+  });
+  const synced=await withDatabase(db=>upsertProjects(db,rows));
   console.log(JSON.stringify({path,synced},null,2));
 }
 async function validateSession(pathArg?: string): Promise<void> { if(!pathArg) throw new Error("session:validate requires a manifest path"); const result=await loadAndValidateSession(resolve(pathArg),resolve("schemas/session.schema.json")); console.log(JSON.stringify(result.valid?{valid:true,id:result.value?.manifest.id,contentHash:result.value?.contentHash}:{valid:false,errors:result.errors},null,2)); if(!result.valid) process.exitCode=1; }
