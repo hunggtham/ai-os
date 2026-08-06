@@ -12,6 +12,7 @@
     "restore": "node scripts/restore.mjs",
     "smoke:clean": "pnpm build && node scripts/smoke-clean-machine.mjs",
     "smoke:backup-restore": "pnpm build && node scripts/smoke-backup-restore.mjs",
+    "smoke:e2e": "pnpm build && node scripts/smoke-full-e2e.mjs",
     "provider:sources:status": "pnpm --filter @ai-os/cli exec node dist/index.js provider:sources:status config/import-sources.yaml",
     "dev:cli": "pnpm --filter @ai-os/cli dev",
     "dev:mcp": "pnpm --filter @ai-os/mcp-server dev",
