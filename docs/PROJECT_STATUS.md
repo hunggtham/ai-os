@@ -1,52 +1,60 @@
 # AI OS Project Status and Completion Plan
 
-Last updated: 2026-08-06 22:35 KST
+Last updated: 2026-08-07 08:21 KST
 
 ## Executive status
 
-AI OS is in the **final v1 release-validation stage**.
+AI OS is in the **final pre-tag review-validation stage**.
 
 Estimated weighted v1 completion: **99%**.
 
 | Area | Completion | Status |
 | --- | ---: | --- |
 | Foundation, architecture, and ADRs | 100% | Complete through PR #26 |
-| Database, sessions, memory, and provider ingestion | 100% | Complete |
+| Database, sessions, memory, and provider ingestion | 100% | Complete; atomic import hardening in PR #29 |
 | Configured source sync and automation reports | 100% | Complete |
-| Dashboard/API and MCP read layer | 100% | Complete through PR #24 |
-| Bootstrap, backup/restore, privacy, and full E2E | 100% | Complete through PR #25 |
-| Reliability and operational hardening | 100% | Complete through PR #27 |
-| Release packaging | 95% | Active in PR #28 |
-| Final main validation and v1 tag | 0% | Starts after PR #28 merges |
+| Dashboard/API and MCP read layer | 100% | Privacy and pagination hardening in PR #29 |
+| Bootstrap, backup/restore, privacy, and full E2E | 100% | Restore validation hardening in PR #29 |
+| Reliability and operational hardening | 100% | Complete through PR #27; lock ownership hardening in PR #29 |
+| Release packaging | 100% | Merged through PR #28 |
+| Final review validation and v1 tag | 80% | PR #29 active; tag pending |
 
 ## Current active milestone
 
-### P2 — Release packaging
+### Pre-tag code review hardening
 
-Pull request: **#28**
+Pull request: **#29**
 
-Delivered in this milestone:
+This milestone was created after an OpenCodeReview-style repository scan of the release candidate.
 
-- `CHANGELOG.md` with the complete v1 capability, privacy, and deferral summary;
-- clean installation and first-start guide;
-- upgrade and rollback runbook with backup and schema-compatibility rules;
-- authoritative release checklist;
-- sanitized demonstration workspace;
-- synthetic Codex JSONL fixture;
-- repository-relative demo source registry;
-- README quick start and release-document links.
+Delivered in PR #29:
+
+- ownership token protection for process-lock release;
+- stale-lock recovery refuses to steal a lock from a live PID;
+- multi-session provider imports commit atomically as one database transaction;
+- regression coverage proving failed imports do not leave partial session/message data;
+- embedded absolute-path redaction for dashboard/API error fields;
+- matching embedded-path redaction for MCP import-health output;
+- POSIX and Windows path-redaction regression coverage;
+- database-backed `LIMIT/OFFSET` pagination for sessions, memories, and FTS search;
+- MCP and dashboard session/search pagination wired to database offsets;
+- regression coverage beyond the previous 500-session cap;
+- restore validates every manifest entry checksum and byte count before writing runtime state;
+- restore rejects unsafe filenames such as `../...`;
+- disaster-recovery smoke coverage for tampered config and path-traversal manifests.
 
 Acceptance criteria:
 
-- [x] Installation does not require chat history.
-- [x] Upgrade and rollback steps include backup, migration, integrity, and compatibility rules.
-- [x] Release checklist covers repository hygiene, validation, privacy, backup, merge, and tagging.
-- [x] Demo assets contain only synthetic data.
-- [x] Demo source registry uses an existing registered project.
-- [x] README points to all release-critical documents.
-- [ ] PR #28 CI is green.
-- [ ] Demo workflow is validated through CI or equivalent clean execution.
-- [ ] PR #28 is merged to `main`.
+- [x] An old process cannot delete a replacement lock owned by another process.
+- [x] A live process lock is not reclaimed merely because its timestamp is old.
+- [x] Provider import failure rolls back the entire multi-session batch.
+- [x] Error messages cannot expose absolute local paths through dashboard/API or MCP default output.
+- [x] Pagination works beyond legacy in-memory caps.
+- [x] Restore validates all manifest files and blocks path traversal.
+- [ ] Latest PR #29 CI is green.
+- [ ] PR #29 is merged to `main`.
+- [ ] Final `main` commit is selected for `v1.0.0`.
+- [ ] `v1.0.0` tag is created and verified.
 
 ## Completed milestones
 
@@ -57,28 +65,29 @@ Acceptance criteria:
 - PR #25: full clean-machine E2E CI gate.
 - PR #26: as-built architecture and ADR closure.
 - PR #27: source-sync locking, stale-import recovery, database maintenance, version reporting, structured errors, tests, and reliability operations.
+- PR #28: changelog, installation, upgrade/rollback, release checklist, sanitized demo, and demo CI gate.
 
 ## Definition of done for v1
 
 1. Clean installation, bootstrap, migration, and documented startup.
-2. Deterministic ChatGPT and Codex/OpenCodex import workflows.
-3. Local search, dashboard, durable memory, and read-only MCP retrieval.
+2. Deterministic ChatGPT and Codex/OpenCodex import workflows with atomic persistence.
+3. Local search, scalable pagination, dashboard, durable memory, and read-only MCP retrieval.
 4. Automation-safe source synchronization and import audit.
-5. Backup, restore, privacy redaction, database maintenance, locking, and recovery controls.
-6. CI build, type, test, clean-bootstrap, disaster-recovery, and full E2E gates.
+5. Backup, restore, privacy redaction, database maintenance, ownership-safe locking, and recovery controls.
+6. CI build, type, test, clean-bootstrap, disaster-recovery, demo, and full E2E gates.
 7. Accepted architecture decisions and explicit post-v1 deferrals.
 8. Installation, operation, upgrade, rollback, changelog, release checklist, and sanitized demo documentation.
-9. Final validation on `main` and tag `v1.0.0`.
+9. Final reviewed `main` validation and tag `v1.0.0`.
 
-Items 1–8 are implemented in code or PR #28. Item 9 is the only remaining release action.
+Items 1–8 are implemented. Item 9 is the only remaining release action after PR #29 is green and merged.
 
 ## Remaining release sequence
 
-1. Validate and merge PR #28.
-2. Verify the final `main` commit and its CI state.
-3. Run or confirm all release checklist gates on `main`.
-4. Create tag `v1.0.0` on the validated `main` commit.
-5. Confirm a fresh installation and full smoke from the tag.
+1. Validate PR #29 CI and repair failures on the same branch.
+2. Merge PR #29 after all review findings and CI gates are complete.
+3. Verify the resulting `main` commit.
+4. Create tag `v1.0.0` on that validated commit.
+5. Confirm the tag resolves to the intended release commit and run/confirm the documented release smoke workflow.
 
 ## Deferred post-v1 work
 
