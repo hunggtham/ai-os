@@ -7,6 +7,9 @@
     "build": "pnpm -r --sort build",
     "check": "pnpm -r --sort build && pnpm -r check",
     "test": "pnpm -r --sort test",
+    "bootstrap": "pnpm build && node scripts/bootstrap.mjs",
+    "smoke:clean": "pnpm build && node scripts/smoke-clean-machine.mjs",
+    "provider:sources:status": "pnpm --filter @ai-os/cli exec node dist/index.js provider:sources:status config/import-sources.yaml",
     "dev:cli": "pnpm --filter @ai-os/cli dev",
     "dev:mcp": "pnpm --filter @ai-os/mcp-server dev",
     "dev:api": "pnpm --filter @ai-os/dashboard-api dev"
