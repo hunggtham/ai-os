@@ -4,55 +4,45 @@ Last updated: 2026-08-07 08:21 KST
 
 ## Executive status
 
-AI OS is in the **final pre-tag review-validation stage**.
+AI OS is in the **final v1 tag-preparation stage**.
 
-Estimated weighted v1 completion: **99%**.
+Estimated weighted v1 completion: **99.5%**.
 
 | Area | Completion | Status |
 | --- | ---: | --- |
 | Foundation, architecture, and ADRs | 100% | Complete through PR #26 |
-| Database, sessions, memory, and provider ingestion | 100% | Complete; atomic import hardening in PR #29 |
+| Database, sessions, memory, and provider ingestion | 100% | Atomic import hardening merged through PR #29 |
 | Configured source sync and automation reports | 100% | Complete |
-| Dashboard/API and MCP read layer | 100% | Privacy and pagination hardening in PR #29 |
-| Bootstrap, backup/restore, privacy, and full E2E | 100% | Restore validation hardening in PR #29 |
-| Reliability and operational hardening | 100% | Complete through PR #27; lock ownership hardening in PR #29 |
+| Dashboard/API and MCP read layer | 100% | Privacy and pagination hardening merged through PR #29 |
+| Bootstrap, backup/restore, privacy, and full E2E | 100% | Restore validation hardening merged through PR #29 |
+| Reliability and operational hardening | 100% | Ownership-safe locking merged through PR #29 |
 | Release packaging | 100% | Merged through PR #28 |
-| Final review validation and v1 tag | 80% | PR #29 active; tag pending |
+| Release version alignment | 90% | Active in PR #30 |
+| v1.0.0 tag | 0% | Pending final validated main commit |
 
 ## Current active milestone
 
-### Pre-tag code review hardening
+### Release version alignment
 
-Pull request: **#29**
+Branch: `release/v1-version-alignment`
 
-This milestone was created after an OpenCodeReview-style repository scan of the release candidate.
+Review hardening PR #29 is merged to `main` at commit `323e98aedef5e8e6d62d2ab7f0f3fb8a14f469c5` after CI #108 passed build, type checks, tests, clean bootstrap smoke, backup/restore smoke, full E2E smoke, and sanitized demo smoke.
 
-Delivered in PR #29:
+This final code milestone aligns the CLI package and runtime-reported version with the intended release tag:
 
-- ownership token protection for process-lock release;
-- stale-lock recovery refuses to steal a lock from a live PID;
-- multi-session provider imports commit atomically as one database transaction;
-- regression coverage proving failed imports do not leave partial session/message data;
-- embedded absolute-path redaction for dashboard/API error fields;
-- matching embedded-path redaction for MCP import-health output;
-- POSIX and Windows path-redaction regression coverage;
-- database-backed `LIMIT/OFFSET` pagination for sessions, memories, and FTS search;
-- MCP and dashboard session/search pagination wired to database offsets;
-- regression coverage beyond the previous 500-session cap;
-- restore validates every manifest entry checksum and byte count before writing runtime state;
-- restore rejects unsafe filenames such as `../...`;
-- disaster-recovery smoke coverage for tampered config and path-traversal manifests.
+- `@ai-os/cli` package version: `1.0.0`;
+- `ai-os version` runtime output: `cliVersion: 1.0.0`;
+- report contract remains version `1`;
+- migration version remains derived from the applied migration set.
 
 Acceptance criteria:
 
-- [x] An old process cannot delete a replacement lock owned by another process.
-- [x] A live process lock is not reclaimed merely because its timestamp is old.
-- [x] Provider import failure rolls back the entire multi-session batch.
-- [x] Error messages cannot expose absolute local paths through dashboard/API or MCP default output.
-- [x] Pagination works beyond legacy in-memory caps.
-- [x] Restore validates all manifest files and blocks path traversal.
-- [ ] Latest PR #29 CI is green.
-- [ ] PR #29 is merged to `main`.
+- [x] All OpenCodeReview-style release findings are fixed and merged through PR #29.
+- [x] PR #29 CI #108 is fully green.
+- [x] CLI package version is `1.0.0`.
+- [x] Runtime `ai-os version` reports `1.0.0`.
+- [ ] Version-alignment PR CI is green.
+- [ ] Version-alignment PR is merged to `main`.
 - [ ] Final `main` commit is selected for `v1.0.0`.
 - [ ] `v1.0.0` tag is created and verified.
 
@@ -66,6 +56,7 @@ Acceptance criteria:
 - PR #26: as-built architecture and ADR closure.
 - PR #27: source-sync locking, stale-import recovery, database maintenance, version reporting, structured errors, tests, and reliability operations.
 - PR #28: changelog, installation, upgrade/rollback, release checklist, sanitized demo, and demo CI gate.
+- PR #29: pre-tag review hardening for lock ownership, atomic imports, embedded path privacy, scalable pagination, and restore-manifest validation.
 
 ## Definition of done for v1
 
@@ -77,14 +68,15 @@ Acceptance criteria:
 6. CI build, type, test, clean-bootstrap, disaster-recovery, demo, and full E2E gates.
 7. Accepted architecture decisions and explicit post-v1 deferrals.
 8. Installation, operation, upgrade, rollback, changelog, release checklist, and sanitized demo documentation.
-9. Final reviewed `main` validation and tag `v1.0.0`.
+9. Release identifiers consistently report `1.0.0`.
+10. Final reviewed `main` validation and tag `v1.0.0`.
 
-Items 1–8 are implemented. Item 9 is the only remaining release action after PR #29 is green and merged.
+Items 1–9 are implemented on the release-version branch. Item 10 remains after the final PR is green and merged.
 
 ## Remaining release sequence
 
-1. Validate PR #29 CI and repair failures on the same branch.
-2. Merge PR #29 after all review findings and CI gates are complete.
+1. Validate the version-alignment PR and repair any CI failure on the same branch.
+2. Merge the version-alignment PR after all gates are green.
 3. Verify the resulting `main` commit.
 4. Create tag `v1.0.0` on that validated commit.
 5. Confirm the tag resolves to the intended release commit and run/confirm the documented release smoke workflow.
