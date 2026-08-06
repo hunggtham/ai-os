@@ -4,13 +4,17 @@ A local-first, provider-independent control plane for shared AI knowledge, sessi
 
 ## Status
 
-AI OS is in the **v1 completion and hardening stage**. Bootstrap, local persistence, session search, durable-memory lifecycle, provider imports, configured-source synchronization, dashboard/API privacy, backup/restore, read-only MCP, and full end-to-end CI validation are implemented.
+AI OS v1 is in final release validation. Bootstrap, persistence, search, durable-memory lifecycle, provider imports, configured-source synchronization, dashboard/API privacy, backup/restore, read-only MCP, reliability controls, and full end-to-end CI validation are implemented.
 
-See:
+Authoritative references:
 
-- [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for completed work, remaining TODOs, and release progress;
-- [`docs/architecture.md`](docs/architecture.md) for the current as-built v1 architecture;
-- [`docs/ADR_STATUS.md`](docs/ADR_STATUS.md) for accepted and deferred architecture decisions.
+- [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) — completion state and remaining release actions;
+- [`docs/architecture.md`](docs/architecture.md) — current as-built architecture;
+- [`docs/ADR_STATUS.md`](docs/ADR_STATUS.md) — accepted and deferred decisions;
+- [`docs/installation.md`](docs/installation.md) — clean installation and first startup;
+- [`docs/upgrade-rollback.md`](docs/upgrade-rollback.md) — safe upgrade and rollback procedure;
+- [`docs/release-checklist.md`](docs/release-checklist.md) — final validation and tagging checklist;
+- [`CHANGELOG.md`](CHANGELOG.md) — v1 capability and change summary.
 
 ## Core principles
 
@@ -24,10 +28,22 @@ See:
 8. Dashboard/API and MCP are read-only for v1.
 9. Secrets, credentials, runtime databases, provider exports, and private attachments must never be committed.
 
+## Quick start
+
+```bash
+git clone https://github.com/hunggtham/ai-os.git
+cd ai-os
+pnpm install --frozen-lockfile
+pnpm bootstrap
+pnpm smoke:e2e
+```
+
+For release installations, check out `v1.0.0` before installing dependencies. See the installation guide for runtime configuration and operational validation.
+
 ## Repository map
 
 ```text
-docs/        Architecture, ADR status, conventions, runbooks, and roadmap
+docs/        Architecture, ADR status, installation, operations, recovery, and release guides
 projects/    Registry and project templates
 knowledge/   Curated reusable knowledge
 sessions/    Sanitized, version-controlled AI work-session archives
@@ -38,6 +54,7 @@ mcp/         MCP contracts and integration documentation
 apps/        CLI, dashboard/API, and MCP applications
 packages/    Shared domain and infrastructure libraries
 scripts/     Bootstrap, backup, restore, smoke, and automation scripts
+demo/        Synthetic provider fixture and source registry for safe validation
 ```
 
-Start with `AGENTS.md`, `docs/PROJECT_STATUS.md`, `docs/architecture.md`, `docs/ADR_STATUS.md`, and `docs/operator-guide.md`.
+Start with `AGENTS.md`, `docs/installation.md`, `docs/operator-guide.md`, and `docs/PROJECT_STATUS.md`.

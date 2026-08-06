@@ -1,0 +1,7 @@
+version: 1
+sources:
+  - id: demo-codex
+    provider: codex
+    projectId: ai-os
+    path: codex-session.jsonl
+    enabled: true

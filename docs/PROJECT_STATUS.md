@@ -1,12 +1,12 @@
 # AI OS Project Status and Completion Plan
 
-Last updated: 2026-08-06 22:28 KST
+Last updated: 2026-08-06 22:35 KST
 
 ## Executive status
 
-AI OS is in the **final v1 hardening and release-preparation stage**.
+AI OS is in the **final v1 release-validation stage**.
 
-Estimated weighted v1 completion: **96%**.
+Estimated weighted v1 completion: **99%**.
 
 | Area | Completion | Status |
 | --- | ---: | --- |
@@ -15,37 +15,38 @@ Estimated weighted v1 completion: **96%**.
 | Configured source sync and automation reports | 100% | Complete |
 | Dashboard/API and MCP read layer | 100% | Complete through PR #24 |
 | Bootstrap, backup/restore, privacy, and full E2E | 100% | Complete through PR #25 |
-| Reliability and operational hardening | 95% | Active in PR #27 |
-| Release packaging and v1 tag | 30% | Final milestone after PR #27 |
+| Reliability and operational hardening | 100% | Complete through PR #27 |
+| Release packaging | 95% | Active in PR #28 |
+| Final main validation and v1 tag | 0% | Starts after PR #28 merges |
 
 ## Current active milestone
 
-### P1 — Reliability hardening controls
+### P2 — Release packaging
 
-Pull request: **#27**
+Pull request: **#28**
 
-Delivered:
+Delivered in this milestone:
 
-- atomic source-sync process lock under `$AI_OS_HOME/locks/source-sync.lock`;
-- concurrent sync rejection with a machine-readable failed report;
-- one-hour stale-lock recovery and `finally`-based release;
-- stale `running` import recovery with configurable age threshold;
-- SQLite `integrity_check`, `ANALYZE`, WAL checkpoint, and optional `VACUUM`;
-- CLI, Node.js, report-contract, and migration version reporting;
-- structured JSON CLI error envelopes;
-- integration tests for stale imports and process-lock lifecycle;
-- operator documentation in `docs/reliability-operations.md`.
+- `CHANGELOG.md` with the complete v1 capability, privacy, and deferral summary;
+- clean installation and first-start guide;
+- upgrade and rollback runbook with backup and schema-compatibility rules;
+- authoritative release checklist;
+- sanitized demonstration workspace;
+- synthetic Codex JSONL fixture;
+- repository-relative demo source registry;
+- README quick start and release-document links.
 
 Acceptance criteria:
 
-- [x] Scheduled source sync cannot overlap accidentally.
-- [x] Interrupted import audit rows can be recovered explicitly.
-- [x] Database integrity and maintenance are operator-accessible.
-- [x] Automation can identify CLI/report/migration versions.
-- [x] CLI failures have a stable JSON envelope and non-zero exit code.
-- [x] Reliability controls have regression coverage.
-- [ ] Latest PR CI is green after process-lock additions.
-- [ ] PR #27 is merged to `main`.
+- [x] Installation does not require chat history.
+- [x] Upgrade and rollback steps include backup, migration, integrity, and compatibility rules.
+- [x] Release checklist covers repository hygiene, validation, privacy, backup, merge, and tagging.
+- [x] Demo assets contain only synthetic data.
+- [x] Demo source registry uses an existing registered project.
+- [x] README points to all release-critical documents.
+- [ ] PR #28 CI is green.
+- [ ] Demo workflow is validated through CI or equivalent clean execution.
+- [ ] PR #28 is merged to `main`.
 
 ## Completed milestones
 
@@ -55,6 +56,7 @@ Acceptance criteria:
 - PR #24: privacy-safe read-only MCP layer.
 - PR #25: full clean-machine E2E CI gate.
 - PR #26: as-built architecture and ADR closure.
+- PR #27: source-sync locking, stale-import recovery, database maintenance, version reporting, structured errors, tests, and reliability operations.
 
 ## Definition of done for v1
 
@@ -62,27 +64,32 @@ Acceptance criteria:
 2. Deterministic ChatGPT and Codex/OpenCodex import workflows.
 3. Local search, dashboard, durable memory, and read-only MCP retrieval.
 4. Automation-safe source synchronization and import audit.
-5. Backup, restore, privacy redaction, database maintenance, and recovery controls.
+5. Backup, restore, privacy redaction, database maintenance, locking, and recovery controls.
 6. CI build, type, test, clean-bootstrap, disaster-recovery, and full E2E gates.
 7. Accepted architecture decisions and explicit post-v1 deferrals.
-8. Installation, operation, upgrade, rollback, changelog, and release documentation.
+8. Installation, operation, upgrade, rollback, changelog, release checklist, and sanitized demo documentation.
 9. Final validation on `main` and tag `v1.0.0`.
 
-Items 1–7 are implemented. Items 8–9 are the remaining release milestone.
+Items 1–8 are implemented in code or PR #28. Item 9 is the only remaining release action.
 
-## Remaining roadmap
+## Remaining release sequence
 
-### P2 — Release packaging
+1. Validate and merge PR #28.
+2. Verify the final `main` commit and its CI state.
+3. Run or confirm all release checklist gates on `main`.
+4. Create tag `v1.0.0` on the validated `main` commit.
+5. Confirm a fresh installation and full smoke from the tag.
 
-- [ ] `CHANGELOG.md`;
-- [ ] installation guide;
-- [ ] upgrade and rollback guide;
-- [ ] release checklist;
-- [ ] sanitized demonstration workspace;
-- [ ] final full smoke run on `main`;
-- [ ] tag `v1.0.0`.
+## Deferred post-v1 work
 
-Non-blocking reliability enhancements, including broader dashboard integration fixtures, remain eligible for post-v1 unless a release validation failure proves they are required.
+- broader realistic provider regression fixtures beyond the sanitized demo and E2E fixture;
+- remote multi-user hosting and authentication;
+- write-capable dashboard or MCP;
+- vector embeddings and semantic retrieval;
+- automatic memory extraction;
+- Mem0/OpenMemory integration;
+- continuous filesystem watching;
+- multi-machine synchronization.
 
 ## Delivery policy until v1
 
