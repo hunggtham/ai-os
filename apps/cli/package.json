@@ -3,12 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": { "ai-os": "dist/index.js" },
+  "bin": {
+    "ai-os": "dist/index.js",
+    "ai-os-source-sync": "dist/source-sync-report.js"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
     "test": "node --test",
-    "dev": "pnpm -r build && node --experimental-strip-types src/index.ts doctor"
+    "dev": "pnpm -r build && node --experimental-strip-types src/index.ts doctor",
+    "source:sync-actionable": "pnpm -r --sort build && node dist/source-sync-report.js"
   },
   "dependencies": {
     "@ai-os/archive-ingest": "workspace:*",
