@@ -13,9 +13,11 @@ await runMigrations(database, resolve("packages/database/migrations"));
 
 const read = createReadLayer(database, {
   repositoryRoot: process.cwd(),
-  home: process.env.HOME,
   exposeRawPaths: process.env.AI_OS_EXPOSE_RAW_PATHS === "1",
-  importSourcesPath: process.env.AI_OS_IMPORT_SOURCES_PATH,
+  ...(process.env.HOME ? { home: process.env.HOME } : {}),
+  ...(process.env.AI_OS_IMPORT_SOURCES_PATH
+    ? { importSourcesPath: process.env.AI_OS_IMPORT_SOURCES_PATH }
+    : {}),
 });
 
 const server = new McpServer(
@@ -40,7 +42,11 @@ server.registerTool("list_projects", {
 server.registerTool("list_sessions", {
   description: "List sessions with stable pagination and optional project filtering.",
   inputSchema: z.object({ projectId: z.string().min(1).optional(), ...pageSchema }),
-}, async (input) => text(read.listSessions(input)));
+}, async ({ projectId, limit, offset }) => text(read.listSessions({
+  limit,
+  offset,
+  ...(projectId ? { projectId } : {}),
+})));
 
 server.registerTool("get_session", {
   description: "Get one session metadata record by ID. Local archive paths are redacted by default.",
@@ -60,7 +66,12 @@ server.registerTool("search_session_messages", {
     limit: z.number().int().min(1).max(200).default(50),
     offset: z.number().int().min(0).default(0),
   }),
-}, async (input) => text(read.searchMessages(input)));
+}, async ({ query, projectId, limit, offset }) => text(read.searchMessages({
+  query,
+  limit,
+  offset,
+  ...(projectId ? { projectId } : {}),
+})));
 
 server.registerTool("list_memories", {
   description: "List durable memories by scope, subject, and text with pagination.",
@@ -70,7 +81,13 @@ server.registerTool("list_memories", {
     text: z.string().min(1).optional(),
     ...pageSchema,
   }),
-}, async (input) => text(read.listMemories(input)));
+}, async ({ scope, subjectId, text: queryText, limit, offset }) => text(read.listMemories({
+  limit,
+  offset,
+  ...(scope ? { scope } : {}),
+  ...(subjectId ? { subjectId } : {}),
+  ...(queryText ? { text: queryText } : {}),
+})));
 
 server.registerTool("get_import_health", {
   description: "Return provider-import summary and paginated audit history.",
@@ -81,7 +98,13 @@ server.registerTool("get_import_health", {
     limit: z.number().int().min(1).max(100).default(50),
     offset: z.number().int().min(0).default(0),
   }),
-}, async (input) => text(read.importHealth(input)));
+}, async ({ projectId, provider, status, limit, offset }) => text(read.importHealth({
+  limit,
+  offset,
+  ...(projectId ? { projectId } : {}),
+  ...(provider ? { provider } : {}),
+  ...(status ? { status } : {}),
+})));
 
 server.registerTool("inspect_source_freshness", {
   description: "Inspect configured provider export sources and report new, changed, synced, missing, disabled, or error states.",
