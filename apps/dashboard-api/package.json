@@ -6,7 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
-    "test": "node --test",
+    "test": "node --test dist/*.test.js",
     "dev": "pnpm -r --sort build && node --experimental-strip-types src/index.ts"
   },
   "dependencies": {
