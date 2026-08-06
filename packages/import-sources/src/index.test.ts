@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import test from "node:test";
 import { openDatabase, runMigrations, upsertProjects } from "@ai-os/database";
 import { importProviderExport } from "@ai-os/provider-import";
-import { inspectImportSources, loadImportSourceRegistry, summarizeImportSourceStatuses } from "./index.js";
+import { inspectImportSources, loadImportSourceRegistry, summarizeImportSourceStatuses, syncActionableImportSources } from "./index.js";
 
 const packageDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsDirectory = resolve(packageDirectory, "../database/migrations");
@@ -95,6 +95,37 @@ test("reports and summarizes provider source freshness", async () => {
     const changed = await inspectImportSources(database, registry, "codex");
     assert.equal(changed[0]?.state, "changed");
     assert.equal(summarizeImportSourceStatuses(changed).actionable, 1);
+  } finally {
+    database.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("synchronizes only new or changed sources and blocks unhealthy inputs", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "ai-os-actionable-sync-"));
+  const database = openDatabase(join(directory, "ai-os.db"));
+  const sourcePath = join(directory, "codex.jsonl");
+  try {
+    await runMigrations(database, migrationsDirectory);
+    upsertProjects(database, [{ id: "ai-os", name: "AI OS", status: "active" }]);
+    await writeFile(sourcePath, JSON.stringify({ role: "user", content: "hello", timestamp: "2026-08-06T00:00:00Z" }));
+    const registry = { version: 1 as const, sources: [
+      { id: "codex", path: sourcePath, projectId: "ai-os", provider: "codex", enabled: true },
+      { id: "missing", path: join(directory, "missing.jsonl"), projectId: "ai-os", provider: "codex", enabled: true },
+      { id: "disabled", path: join(directory, "disabled.jsonl"), projectId: "ai-os", enabled: false },
+    ] };
+
+    const first = await syncActionableImportSources(database, registry);
+    assert.deepEqual(first.map((result) => result.status), ["succeeded", "blocked", "disabled"]);
+    assert.deepEqual(first.map((result) => result.sourceState), ["new", "missing", "disabled"]);
+
+    const second = await syncActionableImportSources(database, registry);
+    assert.deepEqual(second.map((result) => result.status), ["unchanged", "blocked", "disabled"]);
+
+    await writeFile(sourcePath, JSON.stringify({ role: "user", content: "changed", timestamp: "2026-08-06T00:00:00Z" }));
+    const third = await syncActionableImportSources(database, registry, "codex");
+    assert.equal(third[0]?.sourceState, "changed");
+    assert.equal(third[0]?.status, "succeeded");
   } finally {
     database.close();
     await rm(directory, { recursive: true, force: true });

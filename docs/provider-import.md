@@ -47,6 +47,29 @@ The command is read-only. It checks file metadata, calculates SHA-256, and compa
 
 The command exits non-zero when a source is `missing` or `error`, making it suitable for local cron, launchd, systemd timers, or n8n health checks.
 
+## Actionable-only synchronization
+
+`@ai-os/import-sources` exports `syncActionableImportSources(database, registry, sourceId?)` for safe scheduled synchronization.
+
+The function inspects source freshness first and then applies these rules:
+
+- `new` and `changed` sources are imported;
+- `synced` sources return `unchanged` without parsing or persistence;
+- `disabled` sources remain untouched;
+- `missing` and `error` sources return `blocked` with an error message;
+- import exceptions return `failed` without stopping the remaining sources.
+
+Example:
+
+```ts
+const results = await syncActionableImportSources(database, registry);
+const unhealthy = results.some((result) =>
+  result.status === "blocked" || result.status === "failed",
+);
+```
+
+This is the preferred service boundary for cron, launchd, systemd timers, and n8n workflows because it avoids unnecessary provider parsing while preserving per-source audit isolation. A dedicated CLI command can call this service without duplicating freshness logic.
+
 ## Idempotency
 
 Session IDs are derived from project, source path, and provider session identity. Re-importing the same export updates existing sessions and replaces their indexed messages instead of creating duplicates.
