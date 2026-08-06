@@ -4,7 +4,9 @@ A local-first, provider-independent control plane for shared AI knowledge, sessi
 
 ## Status
 
-Phase 0 — Foundation and architecture design.
+AI OS is in the **v1 completion and hardening stage**. Foundation, local persistence, session search, provider imports, import audit, configured source synchronization, freshness inspection, the read-only dashboard, actionable-only sync, and JSON automation reports are implemented.
+
+See [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md) for the authoritative completed-work inventory, definition of done, remaining TODOs, and accelerated delivery sequence.
 
 ## Core principles
 
@@ -30,7 +32,7 @@ Phase 0 — Foundation and architecture design.
 ## Repository map
 
 ```text
-docs/        Architecture, ADRs, conventions, and roadmap
+docs/        Architecture, ADRs, conventions, status, and roadmap
 projects/    Registry and project templates
 knowledge/   Curated reusable knowledge
 sessions/    Full AI work-session archives
@@ -43,4 +45,4 @@ packages/    Shared libraries
 scripts/     Maintenance and automation scripts
 ```
 
-Start with `AGENTS.md`, `docs/architecture.md`, and `docs/roadmap.md`.
+Start with `AGENTS.md`, `docs/PROJECT_STATUS.md`, `docs/architecture.md`, and `docs/roadmap.md`.
