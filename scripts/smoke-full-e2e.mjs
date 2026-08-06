@@ -33,6 +33,45 @@ async function waitFor(url, timeoutMs = 10000) {
   throw new Error(`Timed out waiting for ${url}`);
 }
 
+function createJsonLineReader(stream) {
+  let buffer = "";
+  const pending = [];
+  stream.setEncoding("utf8");
+  stream.on("data", chunk => {
+    buffer += chunk;
+    while (buffer.includes("\n")) {
+      const index = buffer.indexOf("\n");
+      const line = buffer.slice(0, index).trim();
+      buffer = buffer.slice(index + 1);
+      if (!line) continue;
+      let value;
+      try { value = JSON.parse(line); } catch { continue; }
+      const waiter = pending.shift();
+      if (waiter) waiter.resolve(value);
+    }
+  });
+  return (timeoutMs = 10000) => new Promise((resolveMessage, reject) => {
+    const timer = setTimeout(() => reject(new Error("Timed out waiting for MCP response")), timeoutMs);
+    pending.push({
+      resolve(value) { clearTimeout(timer); resolveMessage(value); },
+    });
+  });
+}
+
+async function callMcpTool(processHandle, name, args = {}) {
+  const nextMessage = createJsonLineReader(processHandle.stdout);
+  const send = value => processHandle.stdin.write(`${JSON.stringify(value)}\n`);
+
+  send({ jsonrpc: "2.0", id: 1, method: "initialize", params: { protocolVersion: "2024-11-05", capabilities: {}, clientInfo: { name: "ai-os-e2e", version: "1.0.0" } } });
+  const initialized = await nextMessage();
+  if (initialized.id !== 1 || initialized.error) throw new Error(`MCP initialize failed: ${JSON.stringify(initialized)}`);
+  send({ jsonrpc: "2.0", method: "notifications/initialized", params: {} });
+  send({ jsonrpc: "2.0", id: 2, method: "tools/call", params: { name, arguments: args } });
+  const result = await nextMessage();
+  if (result.id !== 2 || result.error) throw new Error(`MCP tool call failed: ${JSON.stringify(result)}`);
+  return result.result;
+}
+
 let dashboard;
 let mcp;
 try {
@@ -41,7 +80,7 @@ try {
     JSON.stringify({ session_id: "e2e-session", model: "test-model", role: "user", content: "E2E_UNIQUE_MESSAGE from configured source", timestamp: "2026-08-06T00:00:00Z" }),
     JSON.stringify({ session_id: "e2e-session", role: "assistant", content: "E2E response", timestamp: "2026-08-06T00:00:01Z" }),
   ].join("\n") + "\n");
-  await writeFile(registry, `version: 1\nsources:\n  - id: e2e-codex\n    provider: codex\n    project_id: ai-os\n    path: ${JSON.stringify(fixture)}\n    enabled: true\n`);
+  await writeFile(registry, `version: 1\nsources:\n  - id: e2e-codex\n    provider: codex\n    projectId: ai-os\n    path: ${JSON.stringify(fixture)}\n    enabled: true\n`);
 
   run("node", ["scripts/bootstrap.mjs"]);
 
@@ -68,10 +107,12 @@ try {
   if (!Array.isArray(sessions.sessions) || sessions.sessions.length < 1) throw new Error("Dashboard data endpoint returned no sessions");
 
   mcp = spawn("node", ["apps/mcp/dist/index.js"], { cwd: root, env, stdio: ["pipe", "pipe", "pipe"] });
-  await new Promise(resolveDelay => setTimeout(resolveDelay, 500));
-  if (mcp.exitCode !== null) throw new Error(`MCP server exited early with ${mcp.exitCode}`);
+  const mcpResult = await callMcpTool(mcp, "get_system_status");
+  const textContent = mcpResult?.content?.find(item => item.type === "text")?.text;
+  const status = textContent ? JSON.parse(textContent) : null;
+  if (!status || status.counts?.sessions < 1) throw new Error(`MCP tool returned invalid status: ${JSON.stringify(mcpResult)}`);
 
-  console.log(JSON.stringify({ smoke: "passed", providerImport: true, search: true, sourceSync: true, backup: true, dashboard: true, mcpStartup: true }, null, 2));
+  console.log(JSON.stringify({ smoke: "passed", providerImport: true, search: true, sourceSync: true, backup: true, dashboard: true, mcpToolCall: true }, null, 2));
 } finally {
   dashboard?.kill("SIGTERM");
   mcp?.kill("SIGTERM");
