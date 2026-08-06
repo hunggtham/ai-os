@@ -88,8 +88,8 @@ export function createReadLayer(database: Database, options: ReadLayerOptions = 
     listProjects: () => safe({ projects: listProjects(database) }),
     listSessions: (input: { projectId?: string } & PageInput = {}) => {
       const { limit, offset } = page(input, 500);
-      const rows = listSessions(database, input.projectId, Math.min(offset + limit + 1, 1000));
-      return safe({ sessions: rows.slice(offset, offset + limit), limit, offset, hasMore: rows.length > offset + limit });
+      const rows = listSessions(database, input.projectId, limit + 1, offset);
+      return safe({ sessions: rows.slice(0, limit), limit, offset, hasMore: rows.length > limit });
     },
     getSession: (id: string) => safe({ session: getSession(database, id) }),
     listMessages: (input: { sessionId: string } & PageInput) => {
@@ -99,13 +99,13 @@ export function createReadLayer(database: Database, options: ReadLayerOptions = 
     },
     searchMessages: (input: { query: string; projectId?: string } & PageInput) => {
       const { limit, offset } = page(input, 200);
-      const rows = searchSessionMessages(database, input.query, input.projectId, Math.min(offset + limit + 1, 500));
-      return { results: rows.slice(offset, offset + limit), limit, offset, hasMore: rows.length > offset + limit };
+      const rows = searchSessionMessages(database, input.query, input.projectId, limit + 1, offset);
+      return { results: rows.slice(0, limit), limit, offset, hasMore: rows.length > limit };
     },
     listMemories: (input: { scope?: string; subjectId?: string; text?: string } & PageInput = {}) => {
       const { limit, offset } = page(input, 500);
-      const rows = listMemories(database, input.scope, input.subjectId, input.text, Math.min(offset + limit + 1, 1000));
-      return { memories: rows.slice(offset, offset + limit), limit, offset, hasMore: rows.length > offset + limit };
+      const rows = listMemories(database, input.scope, input.subjectId, input.text, limit + 1, offset);
+      return { memories: rows.slice(0, limit), limit, offset, hasMore: rows.length > limit };
     },
     importHealth: (input: { projectId?: string; provider?: string; status?: string } & PageInput = {}) => {
       const { limit, offset } = page(input, 100);
