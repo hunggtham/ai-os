@@ -76,6 +76,17 @@ const normalizeImportRun = (row: RawImportRunRow): ImportRunRow => ({
   ...(row.finishedAt !== null ? { finishedAt: row.finishedAt } : {}),
 });
 
+export function recoverStaleImportRuns(database: DatabaseSync, olderThan: string, recoveredAt = new Date().toISOString()): number {
+  const result = database.prepare(`
+    UPDATE import_runs
+    SET status = 'failed',
+        error_message = COALESCE(error_message, 'Recovered stale running import'),
+        finished_at = ?
+    WHERE status = 'running' AND started_at < ?
+  `).run(recoveredAt, olderThan);
+  return Number(result.changes);
+}
+
 export async function importProviderExport(
   database: DatabaseSync,
   options: ProviderImportOptions,
