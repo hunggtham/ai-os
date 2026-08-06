@@ -3,8 +3,9 @@ import { copyFile, mkdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const root = resolve(new URL("..", import.meta.url).pathname);
+const root = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const home = resolve(process.env.AI_OS_HOME ?? resolve(homedir(), ".ai-os"));
 const configDir = resolve(root, "config");
 const localRegistry = resolve(configDir, "import-sources.yaml");
