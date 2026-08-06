@@ -13,6 +13,14 @@ function inside(root: string, value: string): string | null {
   return candidate.split(sep).join("/");
 }
 
+function isWindowsAbsolute(value: string): boolean {
+  return /^[A-Za-z]:[\\/]/.test(value);
+}
+
+function portableBasename(value: string): string {
+  return value.split(/[\\/]/).filter(Boolean).at(-1) ?? basename(value);
+}
+
 function isPathField(key: string): boolean {
   const normalized = key.replace(/[_-]/g, "").toLowerCase();
   return normalized === "path"
@@ -21,21 +29,35 @@ function isPathField(key: string): boolean {
     || normalized.endsWith("root");
 }
 
+function isErrorTextField(key: string): boolean {
+  const normalized = key.replace(/[_-]/g, "").toLowerCase();
+  return normalized === "error" || normalized === "errormessage" || normalized === "message";
+}
+
 export function redactPath(value: string | null | undefined, options: PathRedactionOptions = {}): string | null {
   if (!value) return null;
-  if (options.exposeRawPaths || !isAbsolute(value)) return value;
+  const windowsAbsolute = isWindowsAbsolute(value);
+  if (options.exposeRawPaths || (!isAbsolute(value) && !windowsAbsolute)) return value;
 
-  if (options.repositoryRoot) {
+  if (!windowsAbsolute && options.repositoryRoot) {
     const repositoryPath = inside(options.repositoryRoot, value);
     if (repositoryPath !== null) return repositoryPath === "." ? "<repo>" : `<repo>/${repositoryPath}`;
   }
 
-  if (options.home) {
+  if (!windowsAbsolute && options.home) {
     const homePath = inside(options.home, value);
     if (homePath !== null) return homePath === "." ? "~" : `~/${homePath}`;
   }
 
-  return `<local>/${basename(value)}`;
+  return `<local>/${portableBasename(value)}`;
+}
+
+export function redactTextPaths(value: string, options: PathRedactionOptions = {}): string {
+  if (options.exposeRawPaths) return value;
+  const redactMatch = (match: string): string => redactPath(match, options) ?? match;
+  return value
+    .replace(/\/(?:[^/\s'"<>:]+\/)*[^/\s'"<>:]+/g, redactMatch)
+    .replace(/[A-Za-z]:\\(?:[^\\\s'"<>:]+\\)*[^\\\s'"<>:]+/g, redactMatch);
 }
 
 export function redactPathFields<T>(value: T, options: PathRedactionOptions = {}): T {
@@ -46,6 +68,8 @@ export function redactPathFields<T>(value: T, options: PathRedactionOptions = {}
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
     if (typeof item === "string" && isPathField(key)) {
       output[key] = redactPath(item, options);
+    } else if (typeof item === "string" && isErrorTextField(key)) {
+      output[key] = redactTextPaths(item, options);
     } else {
       output[key] = redactPathFields(item, options);
     }

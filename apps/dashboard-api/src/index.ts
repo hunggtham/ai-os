@@ -106,8 +106,8 @@ const server = createServer(async (request, response) => {
       const projectId = url.searchParams.get("projectId") ?? undefined;
       const limit = numberParam(url.searchParams.get("limit"), 50, 100);
       const offset = numberParam(url.searchParams.get("offset"), 0, 100000);
-      const rows = listSessions(database, projectId, Math.min(offset + limit + 1, 500));
-      return json(response, { sessions: rows.slice(offset, offset + limit), offset, limit, hasMore: rows.length > offset + limit });
+      const rows = listSessions(database, projectId, limit + 1, offset);
+      return json(response, { sessions: rows.slice(0, limit), offset, limit, hasMore: rows.length > limit });
     }
     if (url.pathname.startsWith("/api/sessions/") && url.pathname.endsWith("/messages")) {
       const id = decodeURIComponent(url.pathname.slice("/api/sessions/".length, -"/messages".length));
@@ -120,9 +120,9 @@ const server = createServer(async (request, response) => {
       if (!query) return json(response, { error: "missing_query" }, 400);
       const projectId = url.searchParams.get("projectId") ?? undefined;
       const limit = numberParam(url.searchParams.get("limit"), 50, 100);
-      const offset = numberParam(url.searchParams.get("offset"), 0, 190);
-      const rows = searchSessionMessages(database, query, projectId, Math.min(offset + limit + 1, 200));
-      return json(response, { results: rows.slice(offset, offset + limit), offset, limit, hasMore: rows.length > offset + limit });
+      const offset = numberParam(url.searchParams.get("offset"), 0, 100000);
+      const rows = searchSessionMessages(database, query, projectId, limit + 1, offset);
+      return json(response, { results: rows.slice(0, limit), offset, limit, hasMore: rows.length > limit });
     }
     return json(response, { error: "not_found" }, 404);
   } catch (error) {

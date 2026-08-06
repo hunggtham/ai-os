@@ -19,7 +19,7 @@ export interface SessionSearchResult {
   rank: number;
 }
 
-export function replaceSessionMessages(
+export function replaceSessionMessagesInTransaction(
   database: DatabaseSync,
   archive: NormalizedSessionArchive,
 ): number {
@@ -34,25 +34,33 @@ export function replaceSessionMessages(
     VALUES (?, ?, ?, ?)
   `);
 
+  deleteFts.run(archive.id);
+  deleteMessages.run(archive.id);
+  archive.messages.forEach((message, ordinal) => {
+    const id = `${archive.id}:${ordinal}`;
+    insertMessage.run(
+      id,
+      archive.id,
+      ordinal,
+      message.role,
+      message.content,
+      message.createdAt ?? null,
+      message.metadata ? JSON.stringify(message.metadata) : null,
+    );
+    insertFts.run(id, archive.id, message.role, message.content);
+  });
+  return archive.messages.length;
+}
+
+export function replaceSessionMessages(
+  database: DatabaseSync,
+  archive: NormalizedSessionArchive,
+): number {
   database.exec("BEGIN IMMEDIATE;");
   try {
-    deleteFts.run(archive.id);
-    deleteMessages.run(archive.id);
-    archive.messages.forEach((message, ordinal) => {
-      const id = `${archive.id}:${ordinal}`;
-      insertMessage.run(
-        id,
-        archive.id,
-        ordinal,
-        message.role,
-        message.content,
-        message.createdAt ?? null,
-        message.metadata ? JSON.stringify(message.metadata) : null,
-      );
-      insertFts.run(id, archive.id, message.role, message.content);
-    });
+    const count = replaceSessionMessagesInTransaction(database, archive);
     database.exec("COMMIT;");
-    return archive.messages.length;
+    return count;
   } catch (error) {
     database.exec("ROLLBACK;");
     throw error;
@@ -97,8 +105,10 @@ export function searchSessionMessages(
   query: string,
   projectId?: string,
   limit = 50,
+  offset = 0,
 ): SessionSearchResult[] {
-  const safeLimit = Math.min(Math.max(limit, 1), 200);
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 201);
+  const safeOffset = Math.min(Math.max(Math.trunc(offset), 0), 100000);
   const sql = projectId
     ? `
       SELECT f.message_id AS messageId, f.session_id AS sessionId, f.role,
@@ -106,19 +116,19 @@ export function searchSessionMessages(
       FROM session_messages_fts f
       JOIN sessions s ON s.id = f.session_id
       WHERE session_messages_fts MATCH ? AND s.project_id = ?
-      ORDER BY rank
-      LIMIT ?
+      ORDER BY rank, f.message_id
+      LIMIT ? OFFSET ?
     `
     : `
       SELECT message_id AS messageId, session_id AS sessionId, role,
              content, bm25(session_messages_fts) AS rank
       FROM session_messages_fts
       WHERE session_messages_fts MATCH ?
-      ORDER BY rank
-      LIMIT ?
+      ORDER BY rank, message_id
+      LIMIT ? OFFSET ?
     `;
   const statement = database.prepare(sql);
   return (projectId
-    ? statement.all(query, projectId, safeLimit)
-    : statement.all(query, safeLimit)) as unknown as SessionSearchResult[];
+    ? statement.all(query, projectId, safeLimit, safeOffset)
+    : statement.all(query, safeLimit, safeOffset)) as unknown as SessionSearchResult[];
 }

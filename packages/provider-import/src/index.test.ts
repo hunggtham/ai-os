@@ -55,6 +55,60 @@ test("skips an unchanged successful provider export and queries audit history", 
   }
 });
 
+test("rolls back every session when a multi-session provider import fails", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "ai-os-provider-atomic-"));
+  const database = openDatabase(join(directory, "ai-os.db"));
+  const sourcePath = join(directory, "conversations.json");
+  try {
+    await runMigrations(database, migrationsDirectory);
+    upsertProjects(database, [{ id: "ai-os", name: "AI OS", status: "active" }]);
+    const conversation = (id: string, content: string) => ({
+      id,
+      create_time: 1_754_352_000,
+      current_node: "node-1",
+      mapping: {
+        "node-1": {
+          parent: null,
+          message: {
+            id: `${id}-message`,
+            author: { role: "user" },
+            create_time: 1_754_352_000,
+            content: { parts: [content] },
+          },
+        },
+      },
+    });
+    await writeFile(sourcePath, JSON.stringify([
+      conversation("first", "committed only if the whole batch succeeds"),
+      conversation("second", "boom"),
+    ]), "utf8");
+    database.exec(`
+      CREATE TRIGGER fail_second_message
+      BEFORE INSERT ON session_messages
+      WHEN NEW.content = 'boom'
+      BEGIN
+        SELECT RAISE(ABORT, 'forced import failure');
+      END;
+    `);
+
+    await assert.rejects(() => importProviderExport(database, {
+      path: sourcePath,
+      projectId: "ai-os",
+      providerHint: "chatgpt",
+    }), /forced import failure/);
+
+    const sessions = database.prepare("SELECT COUNT(*) AS count FROM sessions").get() as { count: number };
+    const messages = database.prepare("SELECT COUNT(*) AS count FROM session_messages").get() as { count: number };
+    assert.equal(Number(sessions.count), 0);
+    assert.equal(Number(messages.count), 0);
+    assert.equal(getImportRunSummary(database).failed, 1);
+    assert.equal(getImportRunSummary(database).succeeded, 0);
+  } finally {
+    database.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test("recovers only stale running import records", async () => {
   const directory = await mkdtemp(join(tmpdir(), "ai-os-provider-recovery-"));
   const database = openDatabase(join(directory, "ai-os.db"));
