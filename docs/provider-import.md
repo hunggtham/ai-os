@@ -22,6 +22,31 @@ ai-os provider:import /path/to/session.jsonl ai-os codex
 
 The adapter accepts role-based records and nested payload/message/item records. Text is extracted from strings or content arrays containing `text`, `input_text`, or `output_text` values.
 
+## Configured source status
+
+Inspect every configured source without importing it:
+
+```bash
+ai-os provider:sources:status config/import-sources.yaml
+```
+
+Inspect one source:
+
+```bash
+ai-os provider:sources:status config/import-sources.yaml codex-local
+```
+
+The command is read-only. It checks file metadata, calculates SHA-256, and compares it with local import audit history. Each source is classified as:
+
+- `disabled`: disabled in the registry;
+- `missing`: configured file does not exist;
+- `new`: file exists but has no matching import history;
+- `synced`: latest successful import has the same SHA-256;
+- `changed`: the file differs from its latest import or the latest run did not succeed;
+- `error`: the path is not a regular file or could not be inspected.
+
+The command exits non-zero when a source is `missing` or `error`, making it suitable for local cron, launchd, systemd timers, or n8n health checks.
+
 ## Idempotency
 
 Session IDs are derived from project, source path, and provider session identity. Re-importing the same export updates existing sessions and replaces their indexed messages instead of creating duplicates.
@@ -45,7 +70,7 @@ Validation rejects:
 - duplicate normalized session IDs;
 - sessions that contain no importable messages.
 
-Provider-specific adapters should run through this validation boundary before persistence. A dedicated CLI inspection command will use the same functions without writing to SQLite.
+Provider-specific adapters should run through this validation boundary before persistence.
 
 ## Data boundary
 

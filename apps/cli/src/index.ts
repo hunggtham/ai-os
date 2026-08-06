@@ -7,7 +7,7 @@ import { parseArchive } from "@ai-os/archive-ingest";
 import { importArchiveDirectory } from "@ai-os/batch-ingest";
 import { loadConfig } from "@ai-os/config";
 import { expireMemories, invalidateMemory, listMemories, openDatabase, runMigrations, supersedeMemory, upsertMemory, upsertProjects, upsertSession } from "@ai-os/database";
-import { loadImportSourceRegistry, syncImportSources } from "@ai-os/import-sources";
+import { inspectImportSources, loadImportSourceRegistry, syncImportSources } from "@ai-os/import-sources";
 import { loadAndValidateMemory } from "@ai-os/memory-core";
 import { loadProjectRegistry } from "@ai-os/project-registry";
 import { importProviderExport as runProviderImport, listImportRuns } from "@ai-os/provider-import";
@@ -37,6 +37,14 @@ async function validateImportSources(pathArg?: string): Promise<void> {
   const registry=await loadImportSourceRegistry(path);
   console.log(JSON.stringify({path,valid:true,sources:registry.sources.length,enabled:registry.sources.filter(source=>source.enabled).length},null,2));
 }
+async function showConfiguredImportSourceStatus(pathArg?: string, sourceId?: string): Promise<void> {
+  const path=resolve(pathArg??"config/import-sources.yaml");
+  const registry=await loadImportSourceRegistry(path);
+  const sources=await withDatabase(db=>inspectImportSources(db,registry,sourceId));
+  const summary=sources.reduce((counts,source)=>({...counts,[source.state]:(counts[source.state]??0)+1}),{} as Record<string,number>);
+  console.log(JSON.stringify({path,summary,sources},null,2));
+  if(sources.some(source=>source.state==="missing"||source.state==="error")) process.exitCode=1;
+}
 async function syncConfiguredImportSources(pathArg?: string, sourceId?: string, forceArg?: string): Promise<void> {
   const path=resolve(pathArg??"config/import-sources.yaml");
   const registry=await loadImportSourceRegistry(path);
@@ -62,9 +70,9 @@ try {
     case "session:validate":await validateSession(args[0]);break; case "session:import":await importSession(args[0]);break;
     case "archive:import":await importArchive(args[0],args[1],args[2],args[3]);break; case "archive:import-dir":await importArchiveBatch(args[0],args[1],args[2]);break; case "archive:search":await searchArchive(args[0],args[1]);break;
     case "provider:import":await importProviderExport(args[0],args[1],args[2],args[3]);break; case "provider:imports":await showProviderImports(args[0]);break;
-    case "provider:sources:validate":await validateImportSources(args[0]);break; case "provider:sources:sync":await syncConfiguredImportSources(args[0],args[1],args[2]);break;
+    case "provider:sources:validate":await validateImportSources(args[0]);break; case "provider:sources:status":await showConfiguredImportSourceStatus(args[0],args[1]);break; case "provider:sources:sync":await syncConfiguredImportSources(args[0],args[1],args[2]);break;
     case "memory:import":await importMemory(args[0]);break; case "memory:list":await showMemories(args[0],args[1]);break; case "memory:invalidate":await invalidate(args[0]);break;
     case "memory:supersede":await supersede(args[0],args[1]);break; case "memory:expire":await expire();break;
-    default: console.error("Usage: ai-os <doctor|db:migrate|registry:validate|registry:sync|session:validate|session:import|archive:import|archive:import-dir|archive:search|provider:import|provider:imports|provider:sources:validate|provider:sources:sync|memory:import|memory:list|memory:invalidate|memory:supersede|memory:expire> [args]"); process.exitCode=1;
+    default: console.error("Usage: ai-os <doctor|db:migrate|registry:validate|registry:sync|session:validate|session:import|archive:import|archive:import-dir|archive:search|provider:import|provider:imports|provider:sources:validate|provider:sources:status|provider:sources:sync|memory:import|memory:list|memory:invalidate|memory:supersede|memory:expire> [args]"); process.exitCode=1;
   }
 } catch(error){ console.error(error instanceof Error?error.message:String(error)); process.exitCode=1; }

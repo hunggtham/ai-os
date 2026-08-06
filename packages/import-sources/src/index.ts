@@ -1,9 +1,10 @@
+import { createHash } from "node:crypto";
+import { readFile, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, resolve } from "node:path";
-import { readFile } from "node:fs/promises";
 import type { DatabaseSync } from "node:sqlite";
-import { parse } from "yaml";
 import { importProviderExport, type ProviderImportResult } from "@ai-os/provider-import";
+import { parse } from "yaml";
 
 export interface ImportSourceDefinition {
   id: string;
@@ -24,6 +25,28 @@ export interface ImportSourceSyncResult {
   status: "succeeded" | "skipped" | "failed" | "disabled";
   result?: ProviderImportResult | undefined;
   error?: string | undefined;
+}
+
+export interface ImportSourceStatus {
+  id: string;
+  path: string;
+  projectId: string;
+  provider?: string | undefined;
+  enabled: boolean;
+  state: "disabled" | "missing" | "new" | "changed" | "synced" | "error";
+  exists: boolean;
+  sizeBytes?: number | undefined;
+  modifiedAt?: string | undefined;
+  contentHash?: string | undefined;
+  lastImportStatus?: string | undefined;
+  lastImportedAt?: string | undefined;
+  error?: string | undefined;
+}
+
+interface RawImportAuditRow {
+  status: string;
+  contentHash: string;
+  startedAt: string;
 }
 
 function expandEnvironment(value: string): string {
@@ -68,6 +91,74 @@ export async function loadImportSourceRegistry(path: string): Promise<ImportSour
     };
   });
   return { version: 1, sources };
+}
+
+function latestImport(database: DatabaseSync, source: ImportSourceDefinition): RawImportAuditRow | undefined {
+  const conditions = ["source_path = ?", "project_id = ?"];
+  const values: string[] = [source.path, source.projectId];
+  if (source.provider) {
+    conditions.push("provider = ?");
+    values.push(source.provider);
+  }
+  return database.prepare(`
+    SELECT status, content_hash AS contentHash, started_at AS startedAt
+    FROM import_runs
+    WHERE ${conditions.join(" AND ")}
+    ORDER BY started_at DESC
+    LIMIT 1
+  `).get(...values) as unknown as RawImportAuditRow | undefined;
+}
+
+export async function inspectImportSources(
+  database: DatabaseSync,
+  registry: ImportSourceRegistry,
+  sourceId?: string,
+): Promise<ImportSourceStatus[]> {
+  const selected = sourceId ? registry.sources.filter((source) => source.id === sourceId) : registry.sources;
+  if (sourceId && selected.length === 0) throw new Error(`Import source not found: ${sourceId}`);
+  const results: ImportSourceStatus[] = [];
+  for (const source of selected) {
+    if (!source.enabled) {
+      results.push({ id: source.id, path: source.path, projectId: source.projectId, ...(source.provider ? { provider: source.provider } : {}), enabled: false, state: "disabled", exists: false });
+      continue;
+    }
+    try {
+      const metadata = await stat(source.path);
+      if (!metadata.isFile()) {
+        results.push({ id: source.id, path: source.path, projectId: source.projectId, ...(source.provider ? { provider: source.provider } : {}), enabled: true, state: "error", exists: true, error: "Source path is not a regular file" });
+        continue;
+      }
+      const contentHash = createHash("sha256").update(await readFile(source.path)).digest("hex");
+      const previous = latestImport(database, source);
+      const state = previous === undefined ? "new" : previous.status === "succeeded" && previous.contentHash === contentHash ? "synced" : "changed";
+      results.push({
+        id: source.id,
+        path: source.path,
+        projectId: source.projectId,
+        ...(source.provider ? { provider: source.provider } : {}),
+        enabled: true,
+        state,
+        exists: true,
+        sizeBytes: metadata.size,
+        modifiedAt: metadata.mtime.toISOString(),
+        contentHash,
+        ...(previous ? { lastImportStatus: previous.status, lastImportedAt: previous.startedAt } : {}),
+      });
+    } catch (error) {
+      const code = error && typeof error === "object" && "code" in error ? String(error.code) : undefined;
+      results.push({
+        id: source.id,
+        path: source.path,
+        projectId: source.projectId,
+        ...(source.provider ? { provider: source.provider } : {}),
+        enabled: true,
+        state: code === "ENOENT" ? "missing" : "error",
+        exists: false,
+        ...(code === "ENOENT" ? {} : { error: error instanceof Error ? error.message : String(error) }),
+      });
+    }
+  }
+  return results;
 }
 
 export async function syncImportSources(
