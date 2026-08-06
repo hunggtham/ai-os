@@ -1,12 +1,12 @@
 # AI OS Project Status and Completion Plan
 
-Last updated: 2026-08-06 15:03 KST
+Last updated: 2026-08-06 15:22 KST
 
 ## Executive status
 
 AI OS is in the **v1 completion and hardening** stage.
 
-Estimated weighted v1 completion: **79%**.
+Estimated weighted v1 completion: **85%**.
 
 | Area | Weight | Completion | Status |
 | --- | ---: | ---: | --- |
@@ -16,45 +16,51 @@ Estimated weighted v1 completion: **79%**.
 | Durable memory lifecycle | 8% | 100% | Complete |
 | Provider adapters and audited imports | 12% | 100% | Complete |
 | Configured source sync and automation reports | 10% | 100% | Complete |
-| Dashboard and read API | 8% | 95% | Privacy hardening in PR #23 |
-| Bootstrap and operator workflow | 7% | 100% | Complete in PR #21 |
-| Backup, restore, and privacy hardening | 8% | 85% | Recovery complete; redaction in PR #23 |
-| MCP read layer | 8% | 20% | Skeleton exists; v1 tools pending |
-| Reliability and operational hardening | 5% | 40% | Smoke gates active; remaining controls pending |
+| Dashboard and read API | 8% | 100% | Complete through PR #23 |
+| Bootstrap and operator workflow | 7% | 100% | Complete through PR #21 |
+| Backup, restore, and privacy hardening | 8% | 100% | Complete through PR #22–#23 |
+| MCP read layer | 8% | 90% | Implementation complete in PR #24; CI hardening pending |
+| Reliability and operational hardening | 5% | 45% | Smoke gates active; remaining controls pending |
 | Release packaging and v1 tag | 4% | 0% | Not started |
 
 ## Current active milestone
 
-### P0-C — Privacy-safe dashboard and API
+### P0-D — Privacy-safe MCP read layer
 
-Pull request: **#23**
+Pull request: **#24**
 
-Status: **Implementation complete; final CI pending**.
+Status: **Implementation complete; CI fixes and final documentation in progress**.
 
 Delivered in this milestone:
 
-- reusable path-redaction library;
-- recursive redaction for `path`, `sourcePath`, `archivePath`, `registryPath`, directory, and root fields;
-- `<repo>/...` aliases for repository-local paths;
-- `~/...` aliases for paths under the current home directory;
-- `<local>/filename` aliases for other absolute local paths;
-- relative paths preserved unchanged;
-- centralized redaction for every JSON API response;
-- redaction in session and import HTML detail pages;
-- explicit `AI_OS_EXPOSE_RAW_PATHS=1` local debugging opt-in;
-- health/status metadata indicating whether raw paths are exposed;
-- regression tests and privacy documentation.
+- isolated, testable MCP read-layer module;
+- `list_projects`;
+- `list_sessions` with project filtering and pagination;
+- `get_session`;
+- `list_session_messages` with pagination;
+- `search_session_messages` with project filtering and pagination;
+- `list_memories` with scope, subject, and text filtering;
+- `get_import_health` with summary and paginated audit history;
+- `inspect_source_freshness` with missing-registry handling;
+- `get_system_status` without exposing runtime paths;
+- bounded `limit` and non-negative `offset` validation;
+- stable `hasMore` pagination metadata;
+- privacy-safe `<repo>`, `~`, and `<local>` path aliases;
+- explicit `AI_OS_EXPOSE_RAW_PATHS=1` local-debugging opt-in;
+- temporary SQLite integration test using real migrations;
+- official MCP operator guide and generic stdio client configuration.
 
 Acceptance criteria:
 
-- [x] Default JSON responses do not expose absolute source, archive, registry, or project paths.
-- [x] Dashboard HTML does not expose raw import or archive paths by default.
-- [x] Relative paths remain readable.
-- [x] Raw paths require an explicit environment-variable opt-in.
-- [x] Path redaction behavior has automated tests.
-- [x] Privacy behavior is documented.
-- [ ] Latest CI is green for the fully integrated server.
-- [ ] PR #23 is merged to `main`.
+- [x] MCP server has a documented start command.
+- [x] Every v1 tool has validated input.
+- [x] List/search tools expose stable pagination metadata.
+- [x] Temporary SQLite integration tests exercise real migrated data.
+- [x] MCP output follows privacy-safe path rules.
+- [x] MCP remains strictly read-only.
+- [x] Missing source registry is handled without crashing.
+- [ ] Latest PR CI is green after exact-optional-property fixes.
+- [ ] PR #24 is merged to `main`.
 
 ## Recently completed milestones
 
@@ -85,6 +91,16 @@ Merged in PR #22.
 - round-trip recovery smoke test;
 - CI disaster-recovery gate;
 - disaster-recovery runbook.
+
+### P0-C — Privacy-safe dashboard and API — Complete
+
+Merged in PR #23.
+
+- centralized JSON response redaction;
+- dashboard HTML path redaction;
+- source, archive, registry, and project path aliases;
+- explicit raw-path debugging opt-in;
+- privacy regression tests and documentation.
 
 ## Definition of done for v1
 
@@ -123,32 +139,22 @@ AI OS v1 is complete only when all of the following are satisfied:
 - Import, list, invalidate, supersede, and expire operations.
 - Scope, subject, category, confidence, provenance, lifecycle status, and timestamps.
 
-### Provider ingestion
+### Provider ingestion and source operations
 
-- Provider-adapter boundary.
-- ChatGPT export ingestion.
-- Codex/OpenCodex JSONL ingestion.
-- Deterministic session identity.
-- Normalized archive validation.
-- Import-run audit history.
-- SHA-256 unchanged-source detection and force rebuild.
-
-### Configured source operations
-
+- ChatGPT and Codex/OpenCodex adapters.
+- Deterministic session identity and normalized archive validation.
+- Import-run audit history and unchanged-source detection.
 - Versioned YAML source registry.
-- Absolute, relative, home-relative, and environment-variable paths.
-- Duplicate detection, disabled sources, and failure isolation.
-- Freshness states: `new`, `changed`, `synced`, `missing`, `disabled`, and `error`.
-- Actionable-only synchronization.
-- Stable JSON reports and exit codes for cron, launchd, systemd, and n8n.
+- Freshness inspection and actionable-only synchronization.
+- Stable JSON reports and automation-safe exit codes.
 
-### Dashboard and API
+### Dashboard, API, and MCP
 
-- Localhost-only, read-only service.
-- Project/session views and message search.
-- Import history, detail, and health summary.
-- Source freshness and state inspection.
-- Privacy-safe path aliases by default.
+- Localhost-only dashboard and read API.
+- Project/session views and full-text search.
+- Import health and source freshness.
+- Default path redaction.
+- Read-only MCP v1 tool surface with pagination and input validation.
 
 ### Operations
 
@@ -156,7 +162,7 @@ AI OS v1 is complete only when all of the following are satisfied:
 - Clean-machine smoke test.
 - Consistent backup and validated restore.
 - Disaster-recovery smoke test.
-- Operator, privacy, and recovery documentation.
+- Operator, privacy, recovery, and MCP documentation.
 
 ## Delivery history
 
@@ -166,30 +172,10 @@ AI OS v1 is complete only when all of the following are satisfied:
 - PR #20: authoritative v1 definition of done and bounded completion plan.
 - PR #21: bootstrap, clean-machine smoke, and operator guide.
 - PR #22: backup, restore, and disaster recovery.
-- PR #23: privacy-safe path redaction for dashboard/API — active.
+- PR #23: privacy-safe path redaction for dashboard/API.
+- PR #24: privacy-safe MCP read layer — active.
 
 ## Remaining roadmap to v1
-
-### P0-D — MCP read layer
-
-Required tools:
-
-- list projects;
-- list sessions;
-- get session details;
-- list session messages with pagination;
-- search session messages;
-- list durable memories;
-- get import health;
-- inspect source freshness.
-
-Acceptance criteria:
-
-- [ ] MCP server starts through a documented command.
-- [ ] Every tool has validated input and stable JSON output.
-- [ ] Temporary SQLite integration tests exercise real data.
-- [ ] All v1 MCP tools remain read-only.
-- [ ] MCP output follows privacy-safe path rules.
 
 ### P0-E — Full end-to-end smoke
 
@@ -237,20 +223,19 @@ The final clean-machine flow must:
 
 ## Accelerated execution sequence
 
-1. Finish CI and merge PR #23.
-2. Deliver all MCP read tools and integration tests in one consolidated PR.
-3. Deliver reliability controls and full end-to-end smoke in one or two PRs.
-4. Close ADRs and align architecture documentation.
-5. Add release documentation and sanitized demo workspace.
-6. Run final validation on `main`.
-7. Tag `v1.0.0`.
+1. Finish CI and merge PR #24.
+2. Deliver reliability controls and full end-to-end smoke in one consolidated PR where practical.
+3. Close ADRs and align architecture documentation.
+4. Add release documentation and sanitized demo workspace.
+5. Run final validation on `main`.
+6. Tag `v1.0.0`.
 
 ## Risk register
 
 | Risk | Impact | Current mitigation |
 | --- | --- | --- |
 | Provider export formats change | Import regression | Isolated adapters; realistic fixtures remain P1. |
-| Local paths leak in UI/API | Privacy exposure | Default recursive redaction; explicit raw opt-in only. |
+| Local paths leak through read surfaces | Privacy exposure | Default recursive redaction in dashboard/API and MCP. |
 | Scheduled sync processes overlap | Confusing or corrupt audit state | Process lock remains P1. |
 | SQLite backup is inconsistent | Restore failure | WAL checkpoint, `VACUUM INTO`, hashes, and integrity validation. |
 | MCP expands into mutation surface | Complexity and safety risk | v1 MCP is strictly read-only. |

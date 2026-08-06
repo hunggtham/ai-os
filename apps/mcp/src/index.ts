@@ -4,77 +4,117 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import * as z from "zod/v4";
 import { loadConfig } from "@ai-os/config";
-import {
-  getSession,
-  getSystemCounts,
-  listMemories,
-  listProjects,
-  listSessions,
-  openDatabase,
-  runMigrations,
-} from "@ai-os/database";
-import { searchSessionMessages } from "@ai-os/session-store";
+import { openDatabase, runMigrations } from "@ai-os/database";
+import { createReadLayer } from "./read-layer.js";
 
 const config = loadConfig();
 const database = openDatabase(config.databasePath);
 await runMigrations(database, resolve("packages/database/migrations"));
 
+const read = createReadLayer(database, {
+  repositoryRoot: process.cwd(),
+  exposeRawPaths: process.env.AI_OS_EXPOSE_RAW_PATHS === "1",
+  ...(process.env.HOME ? { home: process.env.HOME } : {}),
+  ...(process.env.AI_OS_IMPORT_SOURCES_PATH
+    ? { importSourcesPath: process.env.AI_OS_IMPORT_SOURCES_PATH }
+    : {}),
+});
+
 const server = new McpServer(
-  { name: "ai-os", version: "0.3.0" },
-  { instructions: "Read-only access to local AI OS projects, sessions, messages, memories, and status." },
+  { name: "ai-os", version: "0.4.0" },
+  { instructions: "Privacy-safe, read-only access to local AI OS projects, sessions, messages, memories, import health, and configured source freshness." },
 );
 
 function text(value: unknown) {
   return { content: [{ type: "text" as const, text: JSON.stringify(value, null, 2) }] };
 }
 
+const pageSchema = {
+  limit: z.number().int().min(1).max(500).default(50),
+  offset: z.number().int().min(0).default(0),
+};
+
 server.registerTool("list_projects", {
   description: "List projects synchronized into the local AI OS database.",
   inputSchema: z.object({}),
-}, async () => text(listProjects(database)));
+}, async () => text(read.listProjects()));
 
 server.registerTool("list_sessions", {
-  description: "List recent AI sessions, optionally filtered by project.",
-  inputSchema: z.object({
-    projectId: z.string().optional(),
-    limit: z.number().int().min(1).max(500).default(50),
-  }),
-}, async ({ projectId, limit }) => text(listSessions(database, projectId, limit)));
+  description: "List sessions with stable pagination and optional project filtering.",
+  inputSchema: z.object({ projectId: z.string().min(1).optional(), ...pageSchema }),
+}, async ({ projectId, limit, offset }) => text(read.listSessions({
+  limit,
+  offset,
+  ...(projectId ? { projectId } : {}),
+})));
 
 server.registerTool("get_session", {
-  description: "Get one session metadata record by ID.",
+  description: "Get one session metadata record by ID. Local archive paths are redacted by default.",
   inputSchema: z.object({ id: z.string().min(1) }),
-}, async ({ id }) => text(getSession(database, id)));
+}, async ({ id }) => text(read.getSession(id)));
 
-server.registerTool("search_sessions", {
-  description: "Full-text search imported session messages, optionally filtered by project.",
+server.registerTool("list_session_messages", {
+  description: "List messages for one session with pagination.",
+  inputSchema: z.object({ sessionId: z.string().min(1), ...pageSchema }),
+}, async (input) => text(read.listMessages(input)));
+
+server.registerTool("search_session_messages", {
+  description: "Full-text search imported session messages with optional project filtering and pagination.",
   inputSchema: z.object({
     query: z.string().min(1),
-    projectId: z.string().optional(),
+    projectId: z.string().min(1).optional(),
     limit: z.number().int().min(1).max(200).default(50),
+    offset: z.number().int().min(0).default(0),
   }),
-}, async ({ query, projectId, limit }) => text(searchSessionMessages(database, query, projectId, limit)));
+}, async ({ query, projectId, limit, offset }) => text(read.searchMessages({
+  query,
+  limit,
+  offset,
+  ...(projectId ? { projectId } : {}),
+})));
 
-server.registerTool("search_memories", {
-  description: "Search durable memories by scope, subject and text.",
+server.registerTool("list_memories", {
+  description: "List durable memories by scope, subject, and text with pagination.",
   inputSchema: z.object({
-    scope: z.string().optional(),
-    subjectId: z.string().optional(),
-    text: z.string().optional(),
-    limit: z.number().int().min(1).max(500).default(100),
+    scope: z.string().min(1).optional(),
+    subjectId: z.string().min(1).optional(),
+    text: z.string().min(1).optional(),
+    ...pageSchema,
   }),
-}, async ({ scope, subjectId, text: queryText, limit }) =>
-  text(listMemories(database, scope, subjectId, queryText, limit)));
+}, async ({ scope, subjectId, text: queryText, limit, offset }) => text(read.listMemories({
+  limit,
+  offset,
+  ...(scope ? { scope } : {}),
+  ...(subjectId ? { subjectId } : {}),
+  ...(queryText ? { text: queryText } : {}),
+})));
+
+server.registerTool("get_import_health", {
+  description: "Return provider-import summary and paginated audit history.",
+  inputSchema: z.object({
+    projectId: z.string().min(1).optional(),
+    provider: z.string().min(1).optional(),
+    status: z.enum(["running", "succeeded", "failed", "skipped"]).optional(),
+    limit: z.number().int().min(1).max(100).default(50),
+    offset: z.number().int().min(0).default(0),
+  }),
+}, async ({ projectId, provider, status, limit, offset }) => text(read.importHealth({
+  limit,
+  offset,
+  ...(projectId ? { projectId } : {}),
+  ...(provider ? { provider } : {}),
+  ...(status ? { status } : {}),
+})));
+
+server.registerTool("inspect_source_freshness", {
+  description: "Inspect configured provider export sources and report new, changed, synced, missing, disabled, or error states.",
+  inputSchema: z.object({ sourceId: z.string().min(1).optional() }),
+}, async ({ sourceId }) => text(await read.sourceFreshness(sourceId)));
 
 server.registerTool("get_system_status", {
-  description: "Return local AI OS paths and indexed record counts.",
+  description: "Return indexed record counts and privacy mode without exposing runtime paths.",
   inputSchema: z.object({}),
-}, async () => text({
-  home: config.home,
-  dataDir: config.dataDir,
-  databasePath: config.databasePath,
-  counts: getSystemCounts(database),
-}));
+}, async () => text(read.systemStatus()));
 
 const close = (): void => {
   try { database.close(); } catch { /* already closed */ }
