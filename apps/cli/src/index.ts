@@ -14,7 +14,7 @@ import { importProviderExport as runProviderImport, listImportRuns, recoverStale
 import { loadAndValidateSession } from "@ai-os/session-core";
 import { replaceSessionMessages, searchSessionMessages } from "@ai-os/session-store";
 
-const CLI_VERSION = "0.9.0";
+const CLI_VERSION = "1.0.0";
 const REPORT_CONTRACT_VERSION = "1";
 
 async function exists(path: string): Promise<boolean> { try { await access(path, constants.F_OK); return true; } catch { return false; } }
