@@ -13,6 +13,10 @@ function inside(root: string, value: string): string | null {
   return candidate.split(sep).join("/");
 }
 
+function isPathField(key: string): boolean {
+  return /(?:^|_|-)(?:path|directory|root)$/i.test(key) || /(?:Path|Directory|Root)$/.test(key);
+}
+
 export function redactPath(value: string | null | undefined, options: PathRedactionOptions = {}): string | null {
   if (!value) return null;
   if (options.exposeRawPaths || !isAbsolute(value)) return value;
@@ -36,7 +40,7 @@ export function redactPathFields<T>(value: T, options: PathRedactionOptions = {}
 
   const output: Record<string, unknown> = {};
   for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof item === "string" && /(?:^|_)(?:path|directory|root)$/i.test(key)) {
+    if (typeof item === "string" && isPathField(key)) {
       output[key] = redactPath(item, options);
     } else {
       output[key] = redactPathFields(item, options);
