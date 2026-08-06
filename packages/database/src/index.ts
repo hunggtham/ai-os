@@ -89,12 +89,13 @@ export function upsertSession(database: DatabaseSync, session: SessionRow): void
   database.prepare(`INSERT INTO sessions(id,project_id,provider,model,started_at,ended_at,archive_path,content_hash) VALUES (?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET project_id=excluded.project_id,provider=excluded.provider,model=excluded.model,started_at=excluded.started_at,ended_at=excluded.ended_at,archive_path=excluded.archive_path,content_hash=excluded.content_hash`).run(session.id, session.projectId, session.provider, session.model ?? null, session.startedAt, session.endedAt ?? null, session.archivePath, session.contentHash);
 }
 
-export function listSessions(database: DatabaseSync, projectId?: string, limit = 50): SessionRow[] {
-  const safeLimit = Math.min(Math.max(limit, 1), 500);
+export function listSessions(database: DatabaseSync, projectId?: string, limit = 50, offset = 0): SessionRow[] {
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 500);
+  const safeOffset = Math.min(Math.max(Math.trunc(offset), 0), 100000);
   const statement = projectId
-    ? database.prepare(`SELECT id,project_id AS projectId,provider,model,started_at AS startedAt,ended_at AS endedAt,archive_path AS archivePath,content_hash AS contentHash FROM sessions WHERE project_id = ? ORDER BY started_at DESC LIMIT ?`)
-    : database.prepare(`SELECT id,project_id AS projectId,provider,model,started_at AS startedAt,ended_at AS endedAt,archive_path AS archivePath,content_hash AS contentHash FROM sessions ORDER BY started_at DESC LIMIT ?`);
-  return (projectId ? statement.all(projectId, safeLimit) : statement.all(safeLimit)) as unknown as SessionRow[];
+    ? database.prepare(`SELECT id,project_id AS projectId,provider,model,started_at AS startedAt,ended_at AS endedAt,archive_path AS archivePath,content_hash AS contentHash FROM sessions WHERE project_id = ? ORDER BY started_at DESC, id DESC LIMIT ? OFFSET ?`)
+    : database.prepare(`SELECT id,project_id AS projectId,provider,model,started_at AS startedAt,ended_at AS endedAt,archive_path AS archivePath,content_hash AS contentHash FROM sessions ORDER BY started_at DESC, id DESC LIMIT ? OFFSET ?`);
+  return (projectId ? statement.all(projectId, safeLimit, safeOffset) : statement.all(safeLimit, safeOffset)) as unknown as SessionRow[];
 }
 
 export function getSession(database: DatabaseSync, id: string): SessionRow | null {
@@ -105,15 +106,15 @@ export function upsertMemory(database: DatabaseSync, memory: MemoryRow): void {
   database.prepare(`INSERT INTO memories(id,scope,subject_id,kind,content,confidence,source_session_id,status,created_at,updated_at,expires_at,supersedes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET scope=excluded.scope,subject_id=excluded.subject_id,kind=excluded.kind,content=excluded.content,confidence=excluded.confidence,source_session_id=excluded.source_session_id,status=excluded.status,updated_at=excluded.updated_at,expires_at=excluded.expires_at,supersedes=excluded.supersedes`).run(memory.id, memory.scope, memory.subjectId, memory.kind, memory.content, memory.confidence ?? null, memory.sourceSessionId ?? null, memory.status, memory.createdAt, memory.updatedAt, memory.expiresAt ?? null, memory.supersedes ?? null);
 }
 
-export function listMemories(database: DatabaseSync, scope?: string, subjectId?: string, text?: string, limit = 100): MemoryRow[] {
+export function listMemories(database: DatabaseSync, scope?: string, subjectId?: string, text?: string, limit = 100, offset = 0): MemoryRow[] {
   const conditions: string[] = [];
   const values: Array<string | number> = [];
   if (scope) { conditions.push("scope = ?"); values.push(scope); }
   if (subjectId) { conditions.push("subject_id = ?"); values.push(subjectId); }
   if (text) { conditions.push("content LIKE ?"); values.push(`%${text}%`); }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  values.push(Math.min(Math.max(limit, 1), 500));
-  return database.prepare(`SELECT id,scope,subject_id AS subjectId,kind,content,confidence,source_session_id AS sourceSessionId,status,created_at AS createdAt,updated_at AS updatedAt,expires_at AS expiresAt,supersedes FROM memories ${where} ORDER BY updated_at DESC LIMIT ?`).all(...values) as unknown as MemoryRow[];
+  values.push(Math.min(Math.max(Math.trunc(limit), 1), 500), Math.min(Math.max(Math.trunc(offset), 0), 100000));
+  return database.prepare(`SELECT id,scope,subject_id AS subjectId,kind,content,confidence,source_session_id AS sourceSessionId,status,created_at AS createdAt,updated_at AS updatedAt,expires_at AS expiresAt,supersedes FROM memories ${where} ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?`).all(...values) as unknown as MemoryRow[];
 }
 
 export function invalidateMemory(database: DatabaseSync, id: string, updatedAt: string): boolean {
