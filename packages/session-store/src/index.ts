@@ -19,7 +19,7 @@ export interface SessionSearchResult {
   rank: number;
 }
 
-export function replaceSessionMessages(
+export function replaceSessionMessagesInTransaction(
   database: DatabaseSync,
   archive: NormalizedSessionArchive,
 ): number {
@@ -34,25 +34,33 @@ export function replaceSessionMessages(
     VALUES (?, ?, ?, ?)
   `);
 
+  deleteFts.run(archive.id);
+  deleteMessages.run(archive.id);
+  archive.messages.forEach((message, ordinal) => {
+    const id = `${archive.id}:${ordinal}`;
+    insertMessage.run(
+      id,
+      archive.id,
+      ordinal,
+      message.role,
+      message.content,
+      message.createdAt ?? null,
+      message.metadata ? JSON.stringify(message.metadata) : null,
+    );
+    insertFts.run(id, archive.id, message.role, message.content);
+  });
+  return archive.messages.length;
+}
+
+export function replaceSessionMessages(
+  database: DatabaseSync,
+  archive: NormalizedSessionArchive,
+): number {
   database.exec("BEGIN IMMEDIATE;");
   try {
-    deleteFts.run(archive.id);
-    deleteMessages.run(archive.id);
-    archive.messages.forEach((message, ordinal) => {
-      const id = `${archive.id}:${ordinal}`;
-      insertMessage.run(
-        id,
-        archive.id,
-        ordinal,
-        message.role,
-        message.content,
-        message.createdAt ?? null,
-        message.metadata ? JSON.stringify(message.metadata) : null,
-      );
-      insertFts.run(id, archive.id, message.role, message.content);
-    });
+    const count = replaceSessionMessagesInTransaction(database, archive);
     database.exec("COMMIT;");
-    return archive.messages.length;
+    return count;
   } catch (error) {
     database.exec("ROLLBACK;");
     throw error;
