@@ -90,7 +90,7 @@ export function upsertSession(database: DatabaseSync, session: SessionRow): void
 }
 
 export function listSessions(database: DatabaseSync, projectId?: string, limit = 50, offset = 0): SessionRow[] {
-  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 500);
+  const safeLimit = Math.min(Math.max(Math.trunc(limit), 1), 501);
   const safeOffset = Math.min(Math.max(Math.trunc(offset), 0), 100000);
   const statement = projectId
     ? database.prepare(`SELECT id,project_id AS projectId,provider,model,started_at AS startedAt,ended_at AS endedAt,archive_path AS archivePath,content_hash AS contentHash FROM sessions WHERE project_id = ? ORDER BY started_at DESC, id DESC LIMIT ? OFFSET ?`)
@@ -113,7 +113,7 @@ export function listMemories(database: DatabaseSync, scope?: string, subjectId?:
   if (subjectId) { conditions.push("subject_id = ?"); values.push(subjectId); }
   if (text) { conditions.push("content LIKE ?"); values.push(`%${text}%`); }
   const where = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
-  values.push(Math.min(Math.max(Math.trunc(limit), 1), 500), Math.min(Math.max(Math.trunc(offset), 0), 100000));
+  values.push(Math.min(Math.max(Math.trunc(limit), 1), 501), Math.min(Math.max(Math.trunc(offset), 0), 100000));
   return database.prepare(`SELECT id,scope,subject_id AS subjectId,kind,content,confidence,source_session_id AS sourceSessionId,status,created_at AS createdAt,updated_at AS updatedAt,expires_at AS expiresAt,supersedes FROM memories ${where} ORDER BY updated_at DESC, id DESC LIMIT ? OFFSET ?`).all(...values) as unknown as MemoryRow[];
 }
 
