@@ -24,17 +24,33 @@ test("read layer paginates real SQLite data and redacts local paths", async () =
       archivePath: join(directory, "sessions", "session-1.md"),
       contentHash: "hash-1",
     });
+    database.prepare(`
+      INSERT INTO import_runs(id,source_path,project_id,provider,content_hash,status,error_message,started_at,finished_at)
+      VALUES (?,?,?,?,?,'failed',?,?,?)
+    `).run(
+      "import-1",
+      join(directory, "private", "export.jsonl"),
+      "ai-os",
+      "codex",
+      "hash-import",
+      `ENOENT opening ${join(directory, "private", "export.jsonl")}`,
+      "2026-08-06T00:00:00.000Z",
+      "2026-08-06T00:00:01.000Z",
+    );
 
     const read = createReadLayer(database, { home: directory, repositoryRoot: join(directory, "repo") });
     const projects = read.listProjects();
     const sessions = read.listSessions({ projectId: "ai-os", limit: 1, offset: 0 });
     const detail = read.getSession("session-1");
+    const imports = read.importHealth({ limit: 10 });
 
     assert.equal(projects.projects.length, 1);
     assert.equal(projects.projects[0]?.localPath, "<repo>");
     assert.equal(sessions.sessions.length, 1);
     assert.equal(sessions.limit, 1);
     assert.equal(detail.session?.archivePath, "~/sessions/session-1.md");
+    assert.equal(imports.imports[0]?.sourcePath, "~/private/export.jsonl");
+    assert.equal(imports.imports[0]?.errorMessage, "ENOENT opening ~/private/export.jsonl");
     assert.equal(read.systemStatus().rawPathsExposed, false);
   } finally {
     database.close();
