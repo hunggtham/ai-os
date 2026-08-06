@@ -7,7 +7,7 @@ import {
   createDefaultAdapterRegistry,
   inspectNormalizedArchives,
 } from "@ai-os/provider-adapters";
-import { replaceSessionMessages } from "@ai-os/session-store";
+import { replaceSessionMessagesInTransaction } from "@ai-os/session-store";
 
 export interface ProviderImportOptions {
   path: string;
@@ -130,27 +130,35 @@ export async function importProviderExport(
     const archives = await adapter.parse(source);
     assertImportableArchives(archives);
     const inspection = inspectNormalizedArchives(archives);
+    const finishedAt = new Date().toISOString();
 
-    for (const archive of archives) {
-      upsertSession(database, {
-        id: archive.id,
-        projectId: archive.projectId,
-        provider: archive.provider,
-        ...(archive.model !== undefined ? { model: archive.model } : {}),
-        startedAt: archive.startedAt,
-        ...(archive.endedAt !== undefined ? { endedAt: archive.endedAt } : {}),
-        archivePath: `${options.path}#${archive.id}`,
-        contentHash,
-      });
-      replaceSessionMessages(database, archive);
+    database.exec("BEGIN IMMEDIATE;");
+    try {
+      for (const archive of archives) {
+        upsertSession(database, {
+          id: archive.id,
+          projectId: archive.projectId,
+          provider: archive.provider,
+          ...(archive.model !== undefined ? { model: archive.model } : {}),
+          startedAt: archive.startedAt,
+          ...(archive.endedAt !== undefined ? { endedAt: archive.endedAt } : {}),
+          archivePath: `${options.path}#${archive.id}`,
+          contentHash,
+        });
+        replaceSessionMessagesInTransaction(database, archive);
+      }
+
+      database.prepare(`
+        UPDATE import_runs
+        SET status = 'succeeded', sessions_count = ?, messages_count = ?, finished_at = ?
+        WHERE id = ?
+      `).run(inspection.sessions, inspection.messages, finishedAt, runId);
+      database.exec("COMMIT;");
+    } catch (error) {
+      database.exec("ROLLBACK;");
+      throw error;
     }
 
-    const finishedAt = new Date().toISOString();
-    database.prepare(`
-      UPDATE import_runs
-      SET status = 'succeeded', sessions_count = ?, messages_count = ?, finished_at = ?
-      WHERE id = ?
-    `).run(inspection.sessions, inspection.messages, finishedAt, runId);
     return {
       runId,
       status: "succeeded",
