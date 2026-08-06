@@ -47,6 +47,16 @@ export interface ImportRunQuery {
   limit?: number | undefined;
 }
 
+export interface ImportRunSummary {
+  total: number;
+  running: number;
+  succeeded: number;
+  failed: number;
+  skipped: number;
+  latestSucceededAt?: string | undefined;
+  latestFailedAt?: string | undefined;
+}
+
 type RawImportRunRow = ImportRunRow & {
   errorMessage: string | null;
   finishedAt: string | null;
@@ -177,6 +187,37 @@ export function getImportRun(database: DatabaseSync, id: string): ImportRunRow |
     FROM import_runs WHERE id = ?
   `).get(id) as unknown as RawImportRunRow | undefined;
   return row ? normalizeImportRun(row) : null;
+}
+
+export function getImportRunSummary(database: DatabaseSync): ImportRunSummary {
+  const row = database.prepare(`
+    SELECT
+      COUNT(*) AS total,
+      SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END) AS running,
+      SUM(CASE WHEN status = 'succeeded' THEN 1 ELSE 0 END) AS succeeded,
+      SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) AS failed,
+      SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END) AS skipped,
+      MAX(CASE WHEN status = 'succeeded' THEN finished_at END) AS latestSucceededAt,
+      MAX(CASE WHEN status = 'failed' THEN finished_at END) AS latestFailedAt
+    FROM import_runs
+  `).get() as unknown as {
+    total: number;
+    running: number | null;
+    succeeded: number | null;
+    failed: number | null;
+    skipped: number | null;
+    latestSucceededAt: string | null;
+    latestFailedAt: string | null;
+  };
+  return {
+    total: Number(row.total),
+    running: Number(row.running ?? 0),
+    succeeded: Number(row.succeeded ?? 0),
+    failed: Number(row.failed ?? 0),
+    skipped: Number(row.skipped ?? 0),
+    ...(row.latestSucceededAt !== null ? { latestSucceededAt: row.latestSucceededAt } : {}),
+    ...(row.latestFailedAt !== null ? { latestFailedAt: row.latestFailedAt } : {}),
+  };
 }
 
 export function listImportRuns(database: DatabaseSync, limit = 50): ImportRunRow[] {
