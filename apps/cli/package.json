@@ -15,6 +15,7 @@
     "@ai-os/batch-ingest": "workspace:*",
     "@ai-os/config": "workspace:*",
     "@ai-os/database": "workspace:*",
+    "@ai-os/import-sources": "workspace:*",
     "@ai-os/memory-core": "workspace:*",
     "@ai-os/project-registry": "workspace:*",
     "@ai-os/provider-import": "workspace:*",

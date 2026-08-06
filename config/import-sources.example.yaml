@@ -1,0 +1,12 @@
+version: 1
+sources:
+  - id: codex-local
+    path: ~/.codex/sessions/session.jsonl
+    projectId: ai-os
+    provider: codex
+
+  - id: chatgpt-export
+    path: ${HOME}/Downloads/chatgpt-export/conversations.json
+    projectId: ai-os
+    provider: chatgpt
+    enabled: false
