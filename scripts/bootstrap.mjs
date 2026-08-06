@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import { copyFile, mkdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
-import { dirname, fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
