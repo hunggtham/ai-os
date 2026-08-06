@@ -51,6 +51,15 @@ export interface ImportSourceSummary extends Record<ImportSourceState, number> {
   healthy: boolean;
 }
 
+export interface ActionableImportSyncResult {
+  id: string;
+  path: string;
+  sourceState: ImportSourceState;
+  status: "succeeded" | "skipped" | "unchanged" | "disabled" | "blocked" | "failed";
+  result?: ProviderImportResult | undefined;
+  error?: string | undefined;
+}
+
 interface RawImportAuditRow {
   status: string;
   contentHash: string;
@@ -217,5 +226,57 @@ export async function syncImportSources(
       });
     }
   }
+  return results;
+}
+
+export async function syncActionableImportSources(
+  database: DatabaseSync,
+  registry: ImportSourceRegistry,
+  sourceId?: string,
+): Promise<ActionableImportSyncResult[]> {
+  const statuses = await inspectImportSources(database, registry, sourceId);
+  const sourcesById = new Map(registry.sources.map((source) => [source.id, source]));
+  const results: ActionableImportSyncResult[] = [];
+
+  for (const status of statuses) {
+    if (status.state === "disabled") {
+      results.push({ id: status.id, path: status.path, sourceState: status.state, status: "disabled" });
+      continue;
+    }
+    if (status.state === "synced") {
+      results.push({ id: status.id, path: status.path, sourceState: status.state, status: "unchanged" });
+      continue;
+    }
+    if (status.state === "missing" || status.state === "error") {
+      results.push({
+        id: status.id,
+        path: status.path,
+        sourceState: status.state,
+        status: "blocked",
+        error: status.error ?? (status.state === "missing" ? "Source file does not exist" : "Source cannot be read"),
+      });
+      continue;
+    }
+
+    const source = sourcesById.get(status.id);
+    if (!source) throw new Error(`Import source not found after inspection: ${status.id}`);
+    try {
+      const result = await importProviderExport(database, {
+        path: source.path,
+        projectId: source.projectId,
+        ...(source.provider ? { providerHint: source.provider } : {}),
+      });
+      results.push({ id: source.id, path: source.path, sourceState: status.state, status: result.status, result });
+    } catch (error) {
+      results.push({
+        id: source.id,
+        path: source.path,
+        sourceState: status.state,
+        status: "failed",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
   return results;
 }
