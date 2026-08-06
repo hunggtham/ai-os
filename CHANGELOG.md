@@ -4,7 +4,7 @@ All notable changes to AI OS are documented in this file.
 
 The format follows Keep a Changelog principles and semantic versioning.
 
-## [1.0.0] - 2026-08-06
+## [1.0.0] - 2026-08-07
 
 ### Added
 
@@ -28,12 +28,21 @@ The format follows Keep a Changelog principles and semantic versioning.
 - Structured JSON CLI error envelopes.
 - Operator, privacy, disaster-recovery, MCP, reliability, installation, upgrade, rollback, and release documentation.
 
+### Fixed before release tag
+
+- Process-lock release now verifies ownership and stale recovery does not steal locks from a live process.
+- Provider imports are atomic across multi-session batches; a failed session rolls back the entire batch.
+- Dashboard/API and MCP redact absolute paths embedded inside error text, including POSIX and Windows paths.
+- Session, memory, and FTS pagination now use database-level offsets instead of truncating results at legacy in-memory caps.
+- Restore validates every manifest file checksum and size before writing runtime state and rejects unsafe manifest filenames that could escape the backup directory.
+
 ### Security and privacy
 
 - Runtime databases, provider exports, credentials, and private attachments remain outside Git.
-- Absolute local paths are redacted by default from read surfaces.
+- Absolute local paths are redacted by default from read surfaces, including paths embedded in error messages.
 - Raw path exposure requires the explicit local-debugging opt-in `AI_OS_EXPOSE_RAW_PATHS=1`.
 - Dashboard and MCP remain read-only in v1.
+- Backup restore rejects checksum/size mismatches and path-traversal filenames before restoring data.
 
 ### Deferred to post-v1
 
